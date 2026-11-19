@@ -28,6 +28,12 @@
 ---
 
 <p align="center">
+  <img src="media/fixora-vscode-live-ui.png" width="900" alt="Fixora AI Live In-Editor Experience" />
+  <br>
+  <em>Fixora AI active in VS Code: Live Feature Toggles, Inline Status Bar Navigation, and AI Actions.</em>
+</p>
+
+<p align="center">
   <img src="media/vscode-search-highlight.png" width="480" alt="Fixora AI in VS Code Extensions Marketplace" />
   <br>
   <em>Fixora AI live and discoverable in the official VS Code Marketplace search results.</em>
