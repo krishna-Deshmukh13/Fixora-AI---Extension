@@ -28,9 +28,15 @@
 ---
 
 <p align="center">
+  <img src="media/vscode-search-highlight.png" width="480" alt="Fixora AI in VS Code Extensions Marketplace" />
+  <br>
+  <em>Fixora AI live and discoverable in the official VS Code Marketplace search results.</em>
+</p>
+
+<p align="center">
   <img src="media/marketplace-live.png" width="800" alt="Fixora AI Published on Marketplace" />
   <br>
-  <em>Fixora AI officially verified and published by Fixora.foundation on the Visual Studio Marketplace.</em>
+  <em>Official Publisher Analytics: Active on the Visual Studio Marketplace with 14 acquisitions.</em>
 </p>
 
 ---
