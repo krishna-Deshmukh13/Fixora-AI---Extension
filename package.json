@@ -1,0 +1,528 @@
+{
+  "name": "fixora-ai",
+  "displayName": "Fixora AI",
+  "description": "AI-powered Code Reviewer, Bug Detector and Debugging Assistant. Find Bugs. Understand Errors. Fix Code. Build Better.",
+  "version": "0.1.0",
+  "publisher": "FixoraFoundation",
+  "author": {
+    "name": "Krishna Deshmukh",
+    "email": "krishnadeshmukh721@gmail.com",
+    "url": "https://www.linkedin.com/in/krishnadeshmukh13"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/krishna-Deshmukh13/Fixora-AI---Extension.git"
+  },
+  "homepage": "https://github.com/krishna-Deshmukh13/Fixora-AI---Extension#readme",
+  "bugs": {
+    "url": "https://github.com/krishna-Deshmukh13/Fixora-AI---Extension/issues"
+  },
+  "engines": {
+    "vscode": "^1.90.0"
+  },
+  "categories": [
+    "Programming Languages",
+    "Linters",
+    "Formatters",
+    "Education",
+    "Testing"
+  ],
+  "keywords": [
+    "ai",
+    "code-review",
+    "bug-detector",
+    "error-lens",
+    "complexity",
+    "prettier",
+    "eslint",
+    "linter",
+    "formatter",
+    "debugging",
+    "security"
+  ],
+  "main": "./dist/extension.js",
+  "icon": "media/icon.png",
+  "activationEvents": [
+    "onStartupFinished",
+    "*"
+  ],
+  "capabilities": {
+    "untrustedWorkspaces": {
+      "supported": true,
+      "description": "Fixora AI operates safely in untrusted workspaces with local static analyzer execution disabled."
+    }
+  },
+  "contributes": {
+    "commands": [
+      {
+        "command": "fixora.openDashboard",
+        "title": "Open Dashboard",
+        "category": "Fixora AI"
+      },
+      {
+        "command": "fixora.reviewSelection",
+        "title": "Review Selected Code",
+        "category": "Fixora AI"
+      },
+      {
+        "command": "fixora.reviewFile",
+        "title": "Review Current File",
+        "category": "Fixora AI"
+      },
+      {
+        "command": "fixora.reviewWorkspace",
+        "title": "Review Workspace",
+        "category": "Fixora AI"
+      },
+      {
+        "command": "fixora.reviewGit",
+        "title": "Review Git Changes",
+        "category": "Fixora AI"
+      },
+      {
+        "command": "fixora.reviewStaged",
+        "title": "Review Staged Changes",
+        "category": "Fixora AI"
+      },
+      {
+        "command": "fixora.explainError",
+        "title": "Explain Selected Error",
+        "category": "Fixora AI"
+      },
+      {
+        "command": "fixora.explainTerminal",
+        "title": "Explain Terminal Error",
+        "category": "Fixora AI"
+      },
+      {
+        "command": "fixora.fixIssue",
+        "title": "Fix Selected Issue",
+        "category": "Fixora AI"
+      },
+      {
+        "command": "fixora.securityScan",
+        "title": "Security Scan",
+        "category": "Fixora AI"
+      },
+      {
+        "command": "fixora.performanceReview",
+        "title": "Performance Review",
+        "category": "Fixora AI"
+      },
+      {
+        "command": "fixora.qualityReview",
+        "title": "Code Quality Review",
+        "category": "Fixora AI"
+      },
+      {
+        "command": "fixora.learningMode",
+        "title": "Toggle Learning Mode",
+        "category": "Fixora AI"
+      },
+      {
+        "command": "fixora.clearDiagnostics",
+        "title": "Clear Diagnostics",
+        "category": "Fixora AI"
+      },
+      {
+        "command": "fixora.viewHistory",
+        "title": "View Review History",
+        "category": "Fixora AI"
+      },
+      {
+        "command": "fixora.configureApiKey",
+        "title": "Configure Gemini API Key",
+        "category": "Fixora AI"
+      },
+      {
+        "command": "fixora.selectModel",
+        "title": "Select AI Model",
+        "category": "Fixora AI"
+      },
+      {
+        "command": "fixora.configureExcludedFiles",
+        "title": "Configure Excluded Files",
+        "category": "Fixora AI"
+      },
+      {
+        "command": "fixora.exportReport",
+        "title": "Export HTML Audit Report",
+        "category": "Fixora AI"
+      },
+      {
+        "command": "fixora.installGitHook",
+        "title": "Install Git Pre-Commit Guard",
+        "category": "Fixora AI"
+      },
+      {
+        "command": "fixora.analyzeComplexity",
+        "title": "Analyze Code Complexity & Health",
+        "category": "Fixora AI"
+      },
+      {
+        "command": "fixora.toggleInlineDiagnostics",
+        "title": "Toggle Error Lens (Inline Diagnostics)",
+        "category": "Fixora AI"
+      },
+      {
+        "command": "fixora.nextDiagnostic",
+        "title": "Jump to Next Diagnostic",
+        "category": "Fixora AI"
+      },
+      {
+        "command": "fixora.previousDiagnostic",
+        "title": "Jump to Previous Diagnostic",
+        "category": "Fixora AI"
+      },
+      {
+        "command": "fixora.formatDocument",
+        "title": "Format Document (Prettier)",
+        "category": "Fixora AI"
+      },
+      {
+        "command": "fixora.formatSelection",
+        "title": "Format Selection (Prettier)",
+        "category": "Fixora AI"
+      },
+      {
+        "command": "fixora.toggleComplexityLens",
+        "title": "Toggle Code Complexity Lens",
+        "category": "Fixora AI"
+      },
+      {
+        "command": "fixora.toggleFormatter",
+        "title": "Toggle Prettier Auto-Formatter",
+        "category": "Fixora AI"
+      },
+      {
+        "command": "fixora.toggleLinter",
+        "title": "Toggle Real-time Linter (ESLint & Style)",
+        "category": "Fixora AI"
+      }
+    ],
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "fixora-sidebar-view",
+          "title": "Fixora AI",
+          "icon": "media/icon.svg"
+        }
+      ]
+    },
+    "views": {
+      "fixora-sidebar-view": [
+        {
+          "type": "webview",
+          "id": "fixora.sidebar",
+          "name": "Assistant"
+        }
+      ]
+    },
+    "menus": {
+      "editor/context": [
+        {
+          "when": "editorHasSelection",
+          "command": "fixora.reviewSelection",
+          "group": "FixoraAI@1"
+        },
+        {
+          "when": "editorHasSelection",
+          "command": "fixora.explainError",
+          "group": "FixoraAI@2"
+        },
+        {
+          "command": "fixora.reviewFile",
+          "group": "FixoraAI@3"
+        },
+        {
+          "command": "fixora.securityScan",
+          "group": "FixoraAI@4"
+        }
+      ],
+      "commandPalette": [
+        {
+          "command": "fixora.openDashboard"
+        },
+        {
+          "command": "fixora.reviewSelection"
+        },
+        {
+          "command": "fixora.reviewFile"
+        },
+        {
+          "command": "fixora.reviewWorkspace"
+        },
+        {
+          "command": "fixora.reviewGit"
+        },
+        {
+          "command": "fixora.reviewStaged"
+        },
+        {
+          "command": "fixora.explainError"
+        },
+        {
+          "command": "fixora.explainTerminal"
+        },
+        {
+          "command": "fixora.fixIssue"
+        },
+        {
+          "command": "fixora.securityScan"
+        },
+        {
+          "command": "fixora.performanceReview"
+        },
+        {
+          "command": "fixora.qualityReview"
+        },
+        {
+          "command": "fixora.learningMode"
+        },
+        {
+          "command": "fixora.clearDiagnostics"
+        },
+        {
+          "command": "fixora.viewHistory"
+        },
+        {
+          "command": "fixora.configureApiKey"
+        },
+        {
+          "command": "fixora.selectModel"
+        },
+        {
+          "command": "fixora.configureExcludedFiles"
+        }
+      ]
+    },
+    "keybindings": [
+      {
+        "command": "fixora.reviewSelection",
+        "key": "ctrl+alt+r",
+        "mac": "cmd+alt+r",
+        "when": "editorHasSelection"
+      },
+      {
+        "command": "fixora.explainError",
+        "key": "ctrl+alt+e",
+        "mac": "cmd+alt+e",
+        "when": "editorTextFocus"
+      },
+      {
+        "command": "fixora.toggleInlineDiagnostics",
+        "key": "alt+e",
+        "mac": "cmd+e"
+      },
+      {
+        "command": "fixora.nextDiagnostic",
+        "key": "alt+f8"
+      },
+      {
+        "command": "fixora.previousDiagnostic",
+        "key": "shift+alt+f8"
+      },
+      {
+        "command": "fixora.formatDocument",
+        "key": "shift+alt+f",
+        "when": "editorHasDocumentFormattingProvider && editorTextFocus && !editorReadonly"
+      }
+    ],
+    "configuration": {
+      "title": "Fixora AI",
+      "properties": {
+        "fixora.provider": {
+          "type": "string",
+          "default": "gemini",
+          "enum": [
+            "gemini",
+            "ollama"
+          ],
+          "enumDescriptions": [
+            "Google Gemini API via official SDK (Cloud)",
+            "Local Ollama instance at localhost:11434 (100% Offline)"
+          ],
+          "description": "Active AI provider for code reviews and error explanations."
+        },
+        "fixora.ollama.endpoint": {
+          "type": "string",
+          "default": "http://localhost:11434",
+          "description": "HTTP endpoint URL of the local Ollama instance."
+        },
+        "fixora.ollama.model": {
+          "type": "string",
+          "default": "codellama",
+          "enum": [
+            "codellama",
+            "deepseek-coder",
+            "qwen2.5-coder",
+            "llama3"
+          ],
+          "description": "Local model to query via Ollama."
+        },
+        "fixora.model": {
+          "type": "string",
+          "default": "gemini-1.5-flash",
+          "enum": [
+            "gemini-1.5-flash",
+            "gemini-2.0-flash",
+            "gemini-3.8-flash",
+            "gemini-1.5-pro"
+          ],
+          "description": "Gemini model to use for analysis."
+        },
+        "fixora.enableLearningMode": {
+          "type": "boolean",
+          "default": false,
+          "description": "Enable beginner-friendly educational explanations with concepts and mini-examples."
+        },
+        "fixora.enableStaticAnalyzers": {
+          "type": "boolean",
+          "default": true,
+          "description": "Run locally installed static analyzers (e.g. ESLint, Ruff) alongside AI reviews."
+        },
+        "fixora.maxFileSizeKB": {
+          "type": "number",
+          "default": 500,
+          "description": "Maximum file size in kilobytes (KB) to send for review to protect performance and API quota."
+        },
+        "fixora.excludePatterns": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": [
+            "**/node_modules/**",
+            "**/.git/**",
+            "**/dist/**",
+            "**/build/**",
+            "**/out/**",
+            "**/.env*",
+            "**/*.min.js",
+            "**/vendor/**",
+            "**/venv/**",
+            "**/__pycache__/**",
+            "**/coverage/**",
+            "**/*.lock",
+            "**/package-lock.json"
+          ],
+          "description": "Glob patterns of files and folders excluded from Fixora AI reviews."
+        },
+        "fixora.requestTimeoutSeconds": {
+          "type": "number",
+          "default": 90,
+          "description": "Maximum seconds to wait for an AI provider response before timing out."
+        },
+        "fixora.errorLens.enabled": {
+          "type": "boolean",
+          "default": true,
+          "description": "Enable Fixora Error Lens: highlights entire lines with diagnostics and prints messages inline."
+        },
+        "fixora.errorLens.highlightLine": {
+          "type": "boolean",
+          "default": true,
+          "description": "Highlight the background of lines containing errors, warnings, or hints."
+        },
+        "fixora.errorLens.showInlineMessage": {
+          "type": "boolean",
+          "default": true,
+          "description": "Render diagnostic text inline after the end of the line with icons."
+        },
+        "fixora.errorLens.showStatusBar": {
+          "type": "boolean",
+          "default": true,
+          "description": "Show live diagnostic counts in the status bar with jump navigation."
+        },
+        "fixora.complexityLens.enabled": {
+          "type": "boolean",
+          "default": true,
+          "description": "Enable Fixora Complexity Lens: displays cyclomatic complexity metrics on the right side of code and offers offline refactorings."
+        },
+        "fixora.formatter.enabled": {
+          "type": "boolean",
+          "default": true,
+          "description": "Enable Fixora Prettier Auto-Formatter: formats documents and heals syntax issues silently."
+        },
+        "fixora.linter.enabled": {
+          "type": "boolean",
+          "default": true,
+          "description": "Enable Fixora Real-time Linter: catches syntax and style issues in JS, TS, HTML, CSS, and Python as you type (like ESLint)."
+        },
+        "fixora.formatter.tabWidth": {
+          "type": "number",
+          "default": 2,
+          "description": "Number of spaces per indentation level for Prettier formatting."
+        },
+        "fixora.formatter.useTabs": {
+          "type": "boolean",
+          "default": false,
+          "description": "Indent lines with tabs instead of spaces."
+        },
+        "fixora.formatter.semi": {
+          "type": "boolean",
+          "default": true,
+          "description": "Print semicolons at the ends of statements."
+        },
+        "fixora.formatter.singleQuote": {
+          "type": "boolean",
+          "default": true,
+          "description": "Use single quotes instead of double quotes in JavaScript/TypeScript."
+        },
+        "fixora.formatter.printWidth": {
+          "type": "number",
+          "default": 80,
+          "description": "Specify the line length that the printer will wrap on."
+        },
+        "fixora.formatter.trailingComma": {
+          "type": "string",
+          "default": "es5",
+          "enum": [
+            "all",
+            "es5",
+            "none"
+          ],
+          "description": "Print trailing commas wherever possible in multi-line comma-separated structures."
+        },
+        "fixora.formatter.bracketSpacing": {
+          "type": "boolean",
+          "default": true,
+          "description": "Print spaces between brackets in object literals."
+        },
+        "fixora.formatter.arrowParens": {
+          "type": "string",
+          "default": "always",
+          "enum": [
+            "always",
+            "avoid"
+          ],
+          "description": "Include parentheses around a sole arrow function parameter."
+        }
+      }
+    }
+  },
+  "scripts": {
+    "vscode:prepublish": "node esbuild.js --production",
+    "compile": "tsc -p ./ --noEmit && node esbuild.js",
+    "watch": "node esbuild.js --watch",
+    "test": "vitest run",
+    "test:unit": "vitest run",
+    "test:watch": "vitest",
+    "lint": "tsc --noEmit",
+    "package": "vsce package"
+  },
+  "dependencies": {
+    "@google/genai": "^3.6.1",
+    "diff": "^7.0.0",
+    "prettier": "^3.10.1",
+    "zod": "^3.23.8"
+  },
+  "devDependencies": {
+    "@types/diff": "^7.0.0",
+    "@types/node": "^20.14.0",
+    "@types/vscode": "^1.90.0",
+    "@vscode/vsce": "^3.0.0",
+    "esbuild": "^0.23.0",
+    "typescript": "^5.5.0",
+    "vitest": "^2.0.0"
+  }
+}

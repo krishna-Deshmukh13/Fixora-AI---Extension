@@ -1,0 +1,16 @@
+<!-- Fixora AI Sample Test File: HTML -->
+<html>
+  <head>
+    <title>Sample Web App</title>
+  </head>
+  <body>
+    <!-- Issue 1: Missing alt attribute for accessibility -->
+    <img src="logo.png">
+
+    <!-- Issue 2: Inline event handler / XSS vector -->
+    <button onclick="document.getElementById('output').innerHTML = location.search">
+      Display Query
+    </button>
+    <div id="output"></div>
+  </body>
+</html>

@@ -1,0 +1,31 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" width="128" height="128">
+  <defs>
+    <linearGradient id="fixoraGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#38bdf8" />
+      <stop offset="45%" stop-color="#3b82f6" />
+      <stop offset="75%" stop-color="#8b5cf6" />
+      <stop offset="100%" stop-color="#d946ef" />
+    </linearGradient>
+    <linearGradient id="fixoraWing" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#38bdf8" />
+      <stop offset="100%" stop-color="#c084fc" />
+    </linearGradient>
+  </defs>
+
+  <!-- Aerodynamic stylized 'F' matching Fixora AI logo -->
+  <!-- Top curved wing -->
+  <path d="M 40 18 C 65 16, 92 18, 106 32 C 100 44, 82 48, 62 48 L 48 48 C 42 36, 40 26, 40 18 Z" 
+        fill="url(#fixoraGrad)" />
+  
+  <!-- Main curved stem and upper wing -->
+  <path d="M 40 18 C 34 32, 32 50, 32 72 C 32 94, 38 108, 48 116 C 52 114, 54 106, 54 94 C 54 82, 54 62, 54 48 C 72 48, 88 44, 98 32 C 86 20, 60 18, 40 18 Z" 
+        fill="url(#fixoraGrad)" />
+
+  <!-- Mid crossbar wing -->
+  <path d="M 33 60 C 44 54, 58 50, 72 50 C 82 50, 92 52, 94 62 C 84 66, 68 66, 54 68 C 44 68, 38 64, 33 60 Z" 
+        fill="url(#fixoraWing)" />
+
+  <!-- Lower glow accent -->
+  <path d="M 34 76 C 42 70, 50 68, 54 68 C 54 84, 54 98, 48 114 C 40 106, 34 94, 34 76 Z" 
+        fill="#a855f7" />
+</svg>

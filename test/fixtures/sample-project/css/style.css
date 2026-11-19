@@ -1,0 +1,13 @@
+/* Fixora AI Sample Test File: CSS */
+
+.header-container {
+  /* Issue 1: Duplicate property definition */
+  display: flex;
+  display: block;
+
+  /* Issue 2: Invalid color hex */
+  background-color: #gggggg;
+
+  /* Issue 3: Missing vendor prefixes or unit error */
+  margin: 10;
+}
