@@ -27,23 +27,61 @@
 
 ---
 
-<p align="center">
-  <img src="media/fixora-vscode-live-ui.png" width="900" alt="Fixora AI Live In-Editor Experience" />
-  <br>
-  <em>Fixora AI active in VS Code: Live Feature Toggles, Inline Status Bar Navigation, and AI Actions.</em>
-</p>
+## 📸 Live Product Showcase
 
-<p align="center">
-  <img src="media/vscode-search-highlight.png" width="480" alt="Fixora AI in VS Code Extensions Marketplace" />
-  <br>
-  <em>Fixora AI live and discoverable in the official VS Code Marketplace search results.</em>
-</p>
+<div align="center">
+  <h3>⚡ Fixora AI Live In Action (Visual Studio Code)</h3>
+  <p><em>Real-world demonstration inside a live full-stack codebase (<code>AirBnb_Clone</code>), featuring the unified Activity Bar control center, inline diagnostic decorations, and status bar monitor.</em></p>
+  <a href="media/fixora-vscode-live-ui.png" target="_blank">
+    <img src="media/fixora-vscode-live-ui.png" alt="Fixora AI Live In-Editor Experience" width="100%" style="max-width: 960px; border-radius: 8px; box-shadow: 0 4px 20px rgba(0,0,0,0.3);" />
+  </a>
+  <p><sub><em>(Click any image to view in full 2K Ultra HD resolution)</em></sub></p>
+</div>
 
-<p align="center">
-  <img src="media/marketplace-live.png" width="800" alt="Fixora AI Published on Marketplace" />
-  <br>
-  <em>Official Publisher Analytics: Active on the Visual Studio Marketplace with 14 acquisitions.</em>
-</p>
+<br>
+
+<div align="center">
+  <table width="100%" style="border-collapse: collapse; border: none;">
+    <tr>
+      <td width="36%" align="center" valign="top" style="padding: 10px; border: none;">
+        <h4>🎛️ Unified Control Center</h4>
+        <a href="media/fixora-sidebar-panel.png" target="_blank">
+          <img src="media/fixora-sidebar-panel.png" alt="Fixora AI Sidebar Panel" width="100%" style="max-width: 320px; border-radius: 6px; box-shadow: 0 2px 12px rgba(0,0,0,0.25);" />
+        </a>
+        <br>
+        <p align="left">
+          <sub>
+            <strong>Real-Time Feature Controls:</strong><br>
+            • ⚡ <strong>Error Lens:</strong> Inline & gutter diagnostics<br>
+            • 🧠 <strong>Complexity Lens:</strong> Cyclomatic CC badges<br>
+            • 🔍 <strong>Real-Time Linter:</strong> Multi-lang AST checks<br>
+            • ✨ <strong>Prettier Formatter:</strong> Silent auto-healing<br>
+            • 🤖 <strong>AI Actions:</strong> 1-click code reviews & audits
+          </sub>
+        </p>
+      </td>
+      <td width="64%" align="center" valign="top" style="padding: 10px; border: none;">
+        <h4>🔍 VS Code Marketplace Discoverability</h4>
+        <a href="media/vscode-search-highlight.png" target="_blank">
+          <img src="media/vscode-search-highlight.png" alt="Fixora AI in VS Code Extensions Marketplace" width="100%" style="max-width: 520px; border-radius: 6px; box-shadow: 0 2px 12px rgba(0,0,0,0.25);" />
+        </a>
+        <br>
+        <p align="center">
+          <sub><strong>Top Search Result:</strong> Live, verified, and installable directly inside VS Code under <code>FixoraFoundation.fixora-ai</code></sub>
+        </p>
+        <br>
+        <h4>📊 Official Publisher Analytics</h4>
+        <a href="media/marketplace-live.png" target="_blank">
+          <img src="media/marketplace-live.png" alt="Visual Studio Marketplace Analytics" width="100%" style="max-width: 560px; border-radius: 6px; box-shadow: 0 2px 12px rgba(0,0,0,0.25);" />
+        </a>
+        <br>
+        <p align="center">
+          <sub><strong>Verified Publisher Dashboard:</strong> 14 acquisitions, 100% conversion funnel, and active developer adoption.</sub>
+        </p>
+      </td>
+    </tr>
+  </table>
+</div>
 
 ---
 
