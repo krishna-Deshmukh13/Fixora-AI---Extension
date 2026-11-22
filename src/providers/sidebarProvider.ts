@@ -16,6 +16,7 @@ import { PrettierFormatter } from '../formatter/prettierFormatter';
 import { RealtimeLinter } from '../linter/realtimeLinter';
 import { AIManager } from '../ai/aiManager';
 import { BRANDING } from '../constants/branding';
+import { ChatManager } from '../ai/chatManager';
 
 export { getNonce };
 
@@ -140,6 +141,22 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
 
       case 'runComplexityAudit':
         await vscode.commands.executeCommand('fixora.qualityReview');
+        break;
+
+      case 'generateTests':
+        await vscode.commands.executeCommand('fixora.generateTests');
+        break;
+
+      case 'reviewPullRequest':
+        await vscode.commands.executeCommand('fixora.reviewPullRequest');
+        break;
+
+      case 'auditDependencies':
+        await vscode.commands.executeCommand('fixora.auditDependencies');
+        break;
+
+      case 'workspaceHealth':
+        await vscode.commands.executeCommand('fixora.workspaceHealth');
         break;
 
       case 'explainTerminalError':
@@ -295,7 +312,7 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
   }
 
   /**
-   * Interactive AI assistant chat handling.
+   * Interactive AI assistant chat handling with streaming and context injection.
    */
   private async handleUserChatMessage(userText: string): Promise<void> {
     const userMsg: ChatMessage = {
@@ -309,20 +326,6 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
     this.broadcastState(true, 'Thinking...');
 
     try {
-      const editor = vscode.window.activeTextEditor;
-      let contextCode = '';
-      let filePath = 'active_editor';
-      let languageId = 'plaintext';
-
-      if (editor) {
-        filePath = editor.document.fileName;
-        languageId = editor.document.languageId;
-        const selection = editor.selection;
-        contextCode = selection && !selection.isEmpty
-          ? editor.document.getText(selection)
-          : editor.document.getText(new vscode.Range(0, 0, Math.min(150, editor.document.lineCount - 1), 200));
-      }
-
       const aiManager = AIManager.getInstance();
       const isConfigured = await aiManager.isConfigured();
 
@@ -339,26 +342,26 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
         return;
       }
 
-      // Query AI Provider
-      const provider = await aiManager.getProvider();
-      const prompt = `User question: "${userText}"\n\nCurrent file (${filePath}, language: ${languageId}):\n\`\`\`${languageId}\n${contextCode}\n\`\`\`\n\nProvide a concise, direct, professional response with code snippets if applicable.`;
-
-      const result = await provider.reviewCode({
-        code: contextCode || 'console.log("hello");',
-        filePath,
-        languageId,
-        learningMode: false,
-      });
-
-      const replyText = result.summary || `Analysis completed for ${filePath.split(/[\\/]/).pop()}. Found ${result.totalIssues} issue(s).`;
+      const chatManager = ChatManager.getInstance();
       const replyMsg: ChatMessage = {
         id: `asst-${Date.now()}`,
         sender: 'assistant',
-        text: replyText,
+        text: '',
         timestamp: new Date().toISOString(),
       };
-
       this._chatMessages.push(replyMsg);
+
+      const replyText = await chatManager.sendMessage(userText, (chunk) => {
+        replyMsg.text += chunk;
+        this._view?.webview.postMessage({
+          type: 'chatChunk',
+          messageId: replyMsg.id,
+          chunk,
+          fullText: replyMsg.text,
+        });
+      });
+
+      replyMsg.text = replyText;
       this.broadcastState(false);
       this._view?.webview.postMessage({ type: 'chatResponse', message: replyMsg });
     } catch (err: any) {

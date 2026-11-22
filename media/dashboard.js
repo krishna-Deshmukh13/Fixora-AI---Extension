@@ -212,7 +212,7 @@
     vscode.postMessage({ type: 'sendChatMessage', text });
   }
 
-  function appendChatMessage(sender, text, codeBlocks) {
+  function appendChatMessage(sender, text, codeBlocks, msgId) {
     if (!chatStream) return;
 
     // Remove empty welcome placeholder if present
@@ -221,6 +221,7 @@
 
     const bubble = document.createElement('div');
     bubble.className = `chat-bubble ${sender}`;
+    if (msgId) bubble.id = msgId;
 
     const header = document.createElement('div');
     header.className = 'bubble-header';
@@ -254,6 +255,20 @@
 
     chatStream.appendChild(bubble);
     chatStream.scrollTop = chatStream.scrollHeight;
+  }
+
+  function updateStreamingChatMessage(messageId, fullText) {
+    if (!chatStream) return;
+    let el = document.getElementById(messageId);
+    if (!el) {
+      appendChatMessage('assistant', fullText, [], messageId);
+      return;
+    }
+    const body = el.querySelector('.bubble-text');
+    if (body) {
+      body.innerHTML = renderMarkdown(fullText);
+      chatStream.scrollTop = chatStream.scrollHeight;
+    }
   }
 
   // 7. Findings & Filtering
@@ -454,8 +469,19 @@
         switchTab('tab-issues');
         break;
 
-      case 'chatResponse':
-        appendChatMessage('assistant', msg.message.text, msg.message.codeBlocks);
+      case 'chatResponse': {
+        const existing = document.getElementById(msg.message.id);
+        if (existing) {
+          const body = existing.querySelector('.bubble-text');
+          if (body) body.innerHTML = renderMarkdown(msg.message.text);
+        } else {
+          appendChatMessage('assistant', msg.message.text, msg.message.codeBlocks, msg.message.id);
+        }
+        break;
+      }
+
+      case 'chatChunk':
+        updateStreamingChatMessage(msg.messageId, msg.fullText);
         break;
 
       case 'errorExplained':
