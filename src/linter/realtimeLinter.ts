@@ -1,5 +1,7 @@
 import * as vscode from 'vscode';
 import { Logger } from '../utils/logger';
+import { BRANDING } from '../constants/branding';
+import { FileUtils } from '../utils/fileUtils';
 
 export interface LinterFix {
   title: string;
@@ -7,23 +9,53 @@ export interface LinterFix {
   range: vscode.Range;
 }
 
+export const SUPPORTED_LINTER_LANGUAGES = [
+  'javascript',
+  'typescript',
+  'javascriptreact',
+  'typescriptreact',
+  'html',
+  'css',
+  'scss',
+  'less',
+  'python',
+  'java',
+  'c',
+  'cpp',
+  'php',
+  'sql',
+];
+
 /**
- * Real-time as-you-type linter engine for JavaScript, TypeScript, HTML, CSS, and Python.
- * Functions like ESLint & Stylelint, publishing problems inline and providing 1-click Quick Fixes.
+ * Production-grade real-time as-you-type linter engine for:
+ * JavaScript, TypeScript, JSX, TSX, Python, Java, C, C++, HTML, CSS/SCSS/LESS, PHP, and SQL.
+ *
+ * Features:
+ * - Precise line and column coordinate clamping to avoid out-of-bounds positions
+ * - Deduplicated diagnostics
+ * - Cancellation of obsolete work via CancellationTokenSource on rapid typing
+ * - Configurable debouncing
+ * - Clean document closing disposal (onDidCloseTextDocument)
+ * - Safe exclusion detection (respects .gitignore, node_modules, dist)
+ * - 1-click Quick Fixes via CodeActionProvider
+ * - Rich Hover Provider explanations
  */
-export class RealtimeLinter implements vscode.CodeActionProvider {
+export class RealtimeLinter implements vscode.CodeActionProvider, vscode.HoverProvider {
   private static instance: RealtimeLinter;
   private collection: vscode.DiagnosticCollection;
   private enabled: boolean = true;
-  private debounceTimer: NodeJS.Timeout | null = null;
+  private debounceMs: number = 150;
+  private debounceTimers = new Map<string, NodeJS.Timeout>();
+  private cancellationMap = new Map<string, vscode.CancellationTokenSource>();
   private disposables: vscode.Disposable[] = [];
   private fixMap = new Map<string, LinterFix>();
   private logger = Logger.getInstance();
 
   private constructor() {
-    this.collection = vscode.languages.createDiagnosticCollection('fixora-linter');
+    this.collection = vscode.languages.createDiagnosticCollection(BRANDING.LINTER_COLLECTION_NAME);
     this.loadConfiguration();
     this.registerListeners();
+    this.registerProviders();
   }
 
   public static initialize(context?: vscode.ExtensionContext): RealtimeLinter {
@@ -46,10 +78,11 @@ export class RealtimeLinter implements vscode.CodeActionProvider {
   private loadConfiguration(): void {
     const config = vscode.workspace.getConfiguration('fixora.linter');
     this.enabled = config.get<boolean>('enabled', true);
+    this.debounceMs = config.get<number>('debounceMs', 150);
   }
 
   private registerListeners(): void {
-    // 1. Lint as user types (debounced)
+    // 1. As-you-type debounced incremental analysis with cancellation
     this.disposables.push(
       vscode.workspace.onDidChangeTextDocument((e) => {
         if (!this.enabled) return;
@@ -60,7 +93,7 @@ export class RealtimeLinter implements vscode.CodeActionProvider {
       })
     );
 
-    // 2. Lint on document open
+    // 2. Open document
     this.disposables.push(
       vscode.workspace.onDidOpenTextDocument((doc) => {
         if (this.enabled) {
@@ -69,7 +102,14 @@ export class RealtimeLinter implements vscode.CodeActionProvider {
       })
     );
 
-    // 3. Lint on active editor change
+    // 3. Close document: clean up all cached diagnostics, fixes, and cancellation tokens
+    this.disposables.push(
+      vscode.workspace.onDidCloseTextDocument((doc) => {
+        this.clearForUri(doc.uri);
+      })
+    );
+
+    // 4. Active editor changed
     this.disposables.push(
       vscode.window.onDidChangeActiveTextEditor((editor) => {
         if (this.enabled && editor) {
@@ -78,10 +118,10 @@ export class RealtimeLinter implements vscode.CodeActionProvider {
       })
     );
 
-    // 4. Configuration changes
+    // 5. Configuration changes
     this.disposables.push(
       vscode.workspace.onDidChangeConfiguration((e) => {
-        if (e.affectsConfiguration('fixora.linter')) {
+        if (e.affectsConfiguration('fixora.linter') || e.affectsConfiguration('fixora')) {
           this.loadConfiguration();
           if (!this.enabled) {
             this.clearAllDiagnostics();
@@ -92,34 +132,71 @@ export class RealtimeLinter implements vscode.CodeActionProvider {
       })
     );
 
-    // Run initial lint if editor already open
+    // Initial lint for active editor
     if (vscode.window.activeTextEditor) {
       this.lintDocument(vscode.window.activeTextEditor.document);
     }
   }
 
-  private scheduleLint(doc: vscode.TextDocument): void {
-    if (this.debounceTimer) {
-      clearTimeout(this.debounceTimer);
+  private registerProviders(): void {
+    for (const lang of SUPPORTED_LINTER_LANGUAGES) {
+      this.disposables.push(
+        vscode.languages.registerCodeActionsProvider(lang, this, {
+          providedCodeActionKinds: [vscode.CodeActionKind.QuickFix],
+        }),
+        vscode.languages.registerHoverProvider(lang, this)
+      );
     }
-    this.debounceTimer = setTimeout(() => {
-      this.lintDocument(doc);
-    }, 120);
+  }
+
+  private scheduleLint(doc: vscode.TextDocument): void {
+    const uriStr = doc.uri.toString();
+
+    // Clear previous timer for this doc
+    const prevTimer = this.debounceTimers.get(uriStr);
+    if (prevTimer) {
+      clearTimeout(prevTimer);
+    }
+
+    // Cancel in-flight analysis for this doc
+    const prevCts = this.cancellationMap.get(uriStr);
+    if (prevCts) {
+      prevCts.cancel();
+      prevCts.dispose();
+      this.cancellationMap.delete(uriStr);
+    }
+
+    const cts = new vscode.CancellationTokenSource();
+    this.cancellationMap.set(uriStr, cts);
+
+    const timer = setTimeout(() => {
+      this.lintDocument(doc, cts.token);
+      this.debounceTimers.delete(uriStr);
+    }, this.debounceMs);
+
+    this.debounceTimers.set(uriStr, timer);
   }
 
   /**
    * Lints a document and updates the diagnostics collection.
    */
-  public lintDocument(document: vscode.TextDocument): vscode.Diagnostic[] {
+  public lintDocument(
+    document: vscode.TextDocument,
+    cancellationToken?: vscode.CancellationToken
+  ): vscode.Diagnostic[] {
     if (!this.enabled || !document) {
       return [];
     }
 
+    // Respect exclusion settings
+    const filePath = document.fileName || document.uri?.fsPath || '';
+    if (FileUtils.isFileExcluded(filePath)) {
+      this.collection.delete(document.uri);
+      return [];
+    }
+
     const langId = document.languageId.toLowerCase();
-    const isSupported =
-      ['javascript', 'typescript', 'javascriptreact', 'typescriptreact', 'html', 'css', 'scss', 'less', 'python'].includes(
-        langId
-      );
+    const isSupported = SUPPORTED_LINTER_LANGUAGES.includes(langId);
 
     if (!isSupported) {
       return [];
@@ -131,7 +208,12 @@ export class RealtimeLinter implements vscode.CodeActionProvider {
       return [];
     }
 
+    if (cancellationToken?.isCancellationRequested) {
+      return [];
+    }
+
     const diagnostics: vscode.Diagnostic[] = [];
+    const seenHashes = new Set<string>();
 
     // Clean old fixes for this doc
     const uriPrefix = document.uri.toString() + ':';
@@ -141,31 +223,43 @@ export class RealtimeLinter implements vscode.CodeActionProvider {
       }
     }
 
+    // Multi-Language Dispatch
     if (['javascript', 'typescript', 'javascriptreact', 'typescriptreact'].includes(langId)) {
-      this.lintJavaScriptAndTypeScript(document, code, diagnostics);
+      this.lintJavaScriptAndTypeScript(document, code, diagnostics, seenHashes);
     } else if (langId === 'python') {
-      this.lintPython(document, code, diagnostics);
+      this.lintPython(document, code, diagnostics, seenHashes);
     } else if (langId === 'html') {
-      this.lintHtml(document, code, diagnostics);
+      this.lintHtml(document, code, diagnostics, seenHashes);
     } else if (['css', 'scss', 'less'].includes(langId)) {
-      this.lintCss(document, code, diagnostics);
+      this.lintCss(document, code, diagnostics, seenHashes);
+    } else if (langId === 'java') {
+      this.lintJava(document, code, diagnostics, seenHashes);
+    } else if (['c', 'cpp'].includes(langId)) {
+      this.lintCAndCpp(document, code, diagnostics, seenHashes);
+    } else if (langId === 'php') {
+      this.lintPhp(document, code, diagnostics, seenHashes);
+    } else if (langId === 'sql') {
+      this.lintSql(document, code, diagnostics, seenHashes);
+    }
+
+    if (cancellationToken?.isCancellationRequested) {
+      return [];
     }
 
     this.collection.set(document.uri, diagnostics);
     return diagnostics;
   }
 
-  /**
-   * JavaScript & TypeScript ESLint & Syntax Linter
-   */
+  // ==========================================
+  // 1. JavaScript / TypeScript / JSX / TSX
+  // ==========================================
   private lintJavaScriptAndTypeScript(
     doc: vscode.TextDocument,
     code: string,
-    diagnostics: vscode.Diagnostic[]
+    diagnostics: vscode.Diagnostic[],
+    seen: Set<string>
   ): void {
     const lines = code.split(/\r?\n/);
-
-    // 1. Global bracket/brace balance check (Syntax Error)
     let openBraces = 0;
     let openParens = 0;
     let openBrackets = 0;
@@ -175,7 +269,6 @@ export class RealtimeLinter implements vscode.CodeActionProvider {
       const trimmed = lineText.trim();
       if (!trimmed) return;
 
-      // Handle block comments
       if (trimmed.includes('/*')) inBlockComment = true;
       if (inBlockComment) {
         if (trimmed.includes('*/')) inBlockComment = false;
@@ -183,144 +276,149 @@ export class RealtimeLinter implements vscode.CodeActionProvider {
       }
       if (trimmed.startsWith('//')) return;
 
-      // Rule: eqeqeq (=== instead of ==, !== instead of !=)
+      // Rule: eqeqeq (=== / !==)
       const eqMatch = lineText.match(/(?<=\s)(==|!=)(?=\s)/);
       if (eqMatch && eqMatch.index !== undefined) {
-        // Exclude null/undefined comparisons if intended or if already ===
         const idx = eqMatch.index;
         const op = eqMatch[0];
-        const range = new vscode.Range(lineIdx, idx, lineIdx, idx + op.length);
+        const range = this.createClampedRange(doc, lineIdx, idx, idx + op.length);
         const replacement = op === '==' ? '===' : '!==';
         const diag = this.createDiagnostic(
           range,
           `Expected '${replacement}' and instead saw '${op}' (eqeqeq)`,
           vscode.DiagnosticSeverity.Warning,
           'eqeqeq',
-          'Fixora ESLint'
+          BRANDING.PRODUCT_NAME,
+          seen
         );
-        diagnostics.push(diag);
-        this.registerFix(doc.uri, diag, `Replace with '${replacement}'`, replacement, range);
+        if (diag) {
+          diagnostics.push(diag);
+          this.registerFix(doc.uri, diag, `Replace with '${replacement}'`, replacement, range);
+        }
       }
 
-      // Rule: no-var (use let or const instead of var)
-      const varMatch = lineText.match(/\bvar\s+([a-zA-Z0-9_$]+)/);
+      // Rule: no-var
+      const varMatch = lineText.match(/(?:^|\s)var\s+([a-zA-Z0-9_$]+)/);
       if (varMatch && varMatch.index !== undefined) {
-        const range = new vscode.Range(lineIdx, varMatch.index, lineIdx, varMatch.index + 3);
+        const start = lineText.indexOf('var', varMatch.index);
+        const range = this.createClampedRange(doc, lineIdx, start, start + 3);
         const diag = this.createDiagnostic(
           range,
-          `Unexpected 'var', use 'let' or 'const' instead (no-var)`,
+          "Unexpected 'var'. Use 'let' or 'const' instead (no-var)",
           vscode.DiagnosticSeverity.Warning,
           'no-var',
-          'Fixora ESLint'
+          BRANDING.PRODUCT_NAME,
+          seen
         );
-        diagnostics.push(diag);
-        this.registerFix(doc.uri, diag, `Replace 'var' with 'let'`, 'let', range);
+        if (diag) {
+          diagnostics.push(diag);
+          this.registerFix(doc.uri, diag, "Replace 'var' with 'let'", 'let', range);
+        }
       }
 
       // Rule: no-debugger
-      const debugMatch = lineText.match(/\bdebugger\s*;?/);
-      if (debugMatch && debugMatch.index !== undefined) {
-        const range = new vscode.Range(lineIdx, debugMatch.index, lineIdx, debugMatch.index + debugMatch[0].length);
+      if (/\bdebugger\b;?/.test(lineText)) {
+        const idx = lineText.indexOf('debugger');
+        const range = this.createClampedRange(doc, lineIdx, idx, idx + 8);
         const diag = this.createDiagnostic(
           range,
-          `Unexpected 'debugger' statement in code (no-debugger)`,
+          "Unexpected 'debugger' statement in code (no-debugger)",
           vscode.DiagnosticSeverity.Error,
           'no-debugger',
-          'Fixora ESLint'
+          BRANDING.PRODUCT_NAME,
+          seen
         );
-        diagnostics.push(diag);
-        this.registerFix(doc.uri, diag, `Remove 'debugger'`, '', range);
+        if (diag) {
+          diagnostics.push(diag);
+          this.registerFix(doc.uri, diag, 'Remove debugger statement', '', range);
+        }
       }
 
-      // Rule: no-console (warn in production)
-      const consoleMatch = lineText.match(/\bconsole\.(log|debug|info|warn|error)\s*\(/);
-      if (consoleMatch && consoleMatch.index !== undefined) {
-        const range = new vscode.Range(lineIdx, consoleMatch.index, lineIdx, consoleMatch.index + consoleMatch[0].length - 1);
+      // Rule: no-console in non-test files
+      const fileName = doc.fileName || doc.uri?.fsPath || '';
+      if (
+        /console\.(log|debug|info)\s*\(/.test(lineText) &&
+        !fileName.includes('.test.') &&
+        !fileName.includes('.spec.')
+      ) {
+        const idx = lineText.indexOf('console.');
+        const range = this.createClampedRange(doc, lineIdx, idx, idx + 11);
         const diag = this.createDiagnostic(
           range,
-          `Unexpected console statement (no-console)`,
+          "Avoid leaving 'console.log' statements in production code (no-console)",
           vscode.DiagnosticSeverity.Information,
           'no-console',
-          'Fixora ESLint'
+          BRANDING.PRODUCT_NAME,
+          seen
         );
-        diagnostics.push(diag);
+        if (diag) {
+          diagnostics.push(diag);
+        }
       }
 
-      // Rule: no-cond-assign (e.g. if (x = 5))
-      const condAssign = lineText.match(/\b(if|while)\s*\(\s*([a-zA-Z0-9_$]+)\s*=\s*([^=][^)]*)\)/);
-      if (condAssign && condAssign.index !== undefined) {
-        const range = new vscode.Range(lineIdx, condAssign.index, lineIdx, condAssign.index + condAssign[0].length);
+      // Rule: Accidental assignment in conditional if (x = 5)
+      const assignMatch = lineText.match(/if\s*\(\s*([a-zA-Z0-9_$.]+)\s*=\s*([^=][^)]*)\)/);
+      if (assignMatch && assignMatch.index !== undefined) {
+        const idx = lineText.indexOf('=', assignMatch.index);
+        const range = this.createClampedRange(doc, lineIdx, idx, idx + 1);
         const diag = this.createDiagnostic(
           range,
-          `Expected a conditional expression and instead saw an assignment (no-cond-assign)`,
+          'Assignment within conditional expression. Did you mean strict equality "==="? (no-cond-assign)',
           vscode.DiagnosticSeverity.Error,
           'no-cond-assign',
-          'Fixora ESLint'
+          BRANDING.PRODUCT_NAME,
+          seen
         );
-        diagnostics.push(diag);
+        if (diag) {
+          diagnostics.push(diag);
+          this.registerFix(doc.uri, diag, 'Change = to ===', '===', range);
+        }
       }
 
-      // Rule: no-eval
-      const evalMatch = lineText.match(/\beval\s*\(/);
-      if (evalMatch && evalMatch.index !== undefined) {
-        const range = new vscode.Range(lineIdx, evalMatch.index, lineIdx, evalMatch.index + 4);
-        diagnostics.push(
-          this.createDiagnostic(
-            range,
-            `eval can be harmful and opens remote code execution vulnerabilities (no-eval)`,
-            vscode.DiagnosticSeverity.Error,
-            'no-eval',
-            'Fixora ESLint'
-          )
-        );
-      }
-
-      // Bracket counting for syntax check (excluding strings)
-      const sanitized = lineText.replace(/(['"`]).*?\1/g, '');
-      for (const char of sanitized) {
+      // Track braces
+      for (const char of lineText) {
         if (char === '{') openBraces++;
-        if (char === '}') openBraces--;
-        if (char === '(') openParens++;
-        if (char === ')') openParens--;
-        if (char === '[') openBrackets++;
-        if (char === ']') openBrackets--;
+        else if (char === '}') openBraces--;
+        else if (char === '(') openParens++;
+        else if (char === ')') openParens--;
+        else if (char === '[') openBrackets++;
+        else if (char === ']') openBrackets--;
       }
     });
 
-    // Report unclosed syntax structures
-    if (openBraces > 0) {
-      const lastLine = lines.length - 1;
-      diagnostics.push(
-        this.createDiagnostic(
-          new vscode.Range(lastLine, 0, lastLine, lines[lastLine].length),
-          `SyntaxError: ${openBraces} unclosed curly brace(s) '{' detected`,
-          vscode.DiagnosticSeverity.Error,
-          'syntax-unclosed-brace',
-          'Fixora Syntax'
-        )
+    if (openBraces !== 0 || openParens !== 0 || openBrackets !== 0) {
+      const lastLineIdx = Math.max(0, lines.length - 1);
+      const lastLineLen = lines[lastLineIdx].length;
+      const range = this.createClampedRange(doc, lastLineIdx, Math.max(0, lastLineLen - 1), lastLineLen);
+
+      let msg = 'Unbalanced syntax: ';
+      if (openBraces > 0) msg += `missing ${openBraces} closing curly brace(s) '}'`;
+      else if (openBraces < 0) msg += `extraneous ${Math.abs(openBraces)} closing curly brace(s) '}'`;
+      else if (openParens > 0) msg += `missing ${openParens} closing parenthesis ')'`;
+      else if (openBrackets > 0) msg += `missing ${openBrackets} closing bracket ']'`;
+
+      const diag = this.createDiagnostic(
+        range,
+        msg,
+        vscode.DiagnosticSeverity.Error,
+        'syntax-unclosed-brace',
+        BRANDING.PRODUCT_NAME,
+        seen
       );
-    }
-    if (openParens > 0) {
-      const lastLine = lines.length - 1;
-      diagnostics.push(
-        this.createDiagnostic(
-          new vscode.Range(lastLine, 0, lastLine, lines[lastLine].length),
-          `SyntaxError: ${openParens} unclosed parenthesis '(' detected`,
-          vscode.DiagnosticSeverity.Error,
-          'syntax-unclosed-paren',
-          'Fixora Syntax'
-        )
-      );
+      if (diag) {
+        diagnostics.push(diag);
+      }
     }
   }
 
-  /**
-   * Python PEP 8 & Syntax Linter
-   */
+  // ==========================================
+  // 2. Python PEP 8 & Syntax
+  // ==========================================
   private lintPython(
     doc: vscode.TextDocument,
     code: string,
-    diagnostics: vscode.Diagnostic[]
+    diagnostics: vscode.Diagnostic[],
+    seen: Set<string>
   ): void {
     const lines = code.split(/\r?\n/);
 
@@ -328,295 +426,264 @@ export class RealtimeLinter implements vscode.CodeActionProvider {
       const trimmed = lineText.trim();
       if (!trimmed || trimmed.startsWith('#')) return;
 
-      // Rule: Missing colon in statements (def, class, if, elif, else, while, for, try, except, finally, with)
-      const colonMatch = trimmed.match(/^(def\s+\w+\(.*?\)|class\s+\w+.*|if\s+.*|elif\s+.*|else|while\s+.*|for\s+.*|try|except.*|finally|with\s+.*)$/);
-      if (colonMatch && !trimmed.endsWith(':')) {
-        const startCol = lineText.indexOf(trimmed);
-        const range = new vscode.Range(lineIdx, startCol, lineIdx, startCol + trimmed.length);
+      // Rule: Missing colon after control statements
+      const colonMatch = trimmed.match(/^(def|class|if|elif|else|for|while|try|except|finally|with)\b.*[^:]$/);
+      if (colonMatch && !trimmed.endsWith('\\')) {
+        const start = lineText.indexOf(trimmed);
+        const range = this.createClampedRange(doc, lineIdx, start + trimmed.length, start + trimmed.length);
         const diag = this.createDiagnostic(
           range,
-          `SyntaxError: Expected ':' at end of ${trimmed.split(/\s+/)[0]} statement`,
+          `Expected ':' at the end of '${colonMatch[1]}' statement (pep8-missing-colon)`,
           vscode.DiagnosticSeverity.Error,
           'pep8-missing-colon',
-          'Fixora PEP8'
+          BRANDING.PRODUCT_NAME,
+          seen
         );
-        diagnostics.push(diag);
-        this.registerFix(doc.uri, diag, `Add missing ':'`, `${lineText}:`, new vscode.Range(lineIdx, 0, lineIdx, lineText.length));
+        if (diag) {
+          diagnostics.push(diag);
+          this.registerFix(doc.uri, diag, "Add missing ':'", ':', range);
+        }
       }
 
-      // Rule: pep8 comparison with None (use `is None` / `is not None` instead of `== None` / `!= None`)
-      const noneMatch = lineText.match(/(\w+|\))\s*(==|!=)\s*None\b/);
+      // Rule: Comparison to None (E711)
+      const noneMatch = lineText.match(/[!=]=\s*None\b/);
       if (noneMatch && noneMatch.index !== undefined) {
-        const op = noneMatch[2];
-        const range = new vscode.Range(lineIdx, noneMatch.index, lineIdx, noneMatch.index + noneMatch[0].length);
-        const replacementOp = op === '==' ? 'is None' : 'is not None';
-        const replacement = `${noneMatch[1]} ${replacementOp}`;
+        const isNegated = noneMatch[0].startsWith('!=');
+        const target = noneMatch[0];
+        const replacement = isNegated ? 'is not None' : 'is None';
+        const start = noneMatch.index;
+        const range = this.createClampedRange(doc, lineIdx, start, start + target.length);
         const diag = this.createDiagnostic(
           range,
-          `Comparison to None should be 'if cond ${replacementOp}:' (PEP 8 E711)`,
+          `Comparison to None should be 'if cond ${replacement}:' (PEP 8 E711)`,
           vscode.DiagnosticSeverity.Warning,
           'E711',
-          'Fixora PEP8'
+          BRANDING.PRODUCT_NAME,
+          seen
         );
-        diagnostics.push(diag);
-        this.registerFix(doc.uri, diag, `Replace with '${replacement}'`, replacement, range);
+        if (diag) {
+          diagnostics.push(diag);
+          this.registerFix(doc.uri, diag, `Replace with '${replacement}'`, replacement, range);
+        }
       }
 
-      // Rule: pep8 comparison with True / False (use `if cond:` instead of `if cond == True:`)
-      const boolMatch = lineText.match(/(\w+)\s*==\s*(True|False)\b/);
-      if (boolMatch && boolMatch.index !== undefined) {
-        const range = new vscode.Range(lineIdx, boolMatch.index, lineIdx, boolMatch.index + boolMatch[0].length);
-        const replacement = boolMatch[2] === 'True' ? boolMatch[1] : `not ${boolMatch[1]}`;
+      // Rule: Bare except clause (E722)
+      if (/^except\s*:/.test(trimmed)) {
+        const start = lineText.indexOf('except');
+        const range = this.createClampedRange(doc, lineIdx, start, start + 6);
         const diag = this.createDiagnostic(
           range,
-          `Comparison to ${boolMatch[2]} should be '${replacement}' (PEP 8 E712)`,
-          vscode.DiagnosticSeverity.Warning,
-          'E712',
-          'Fixora PEP8'
-        );
-        diagnostics.push(diag);
-        this.registerFix(doc.uri, diag, `Simplify to '${replacement}'`, replacement, range);
-      }
-
-      // Rule: bare except
-      if (trimmed === 'except:') {
-        const startCol = lineText.indexOf('except:');
-        const range = new vscode.Range(lineIdx, startCol, lineIdx, startCol + 7);
-        const diag = this.createDiagnostic(
-          range,
-          `Do not use bare 'except', specify exception type 'except Exception:' (PEP 8 E722)`,
+          "Do not use bare 'except': Specify explicit exception type like 'except Exception:' (PEP 8 E722)",
           vscode.DiagnosticSeverity.Warning,
           'E722',
-          'Fixora PEP8'
+          BRANDING.PRODUCT_NAME,
+          seen
         );
-        diagnostics.push(diag);
-        this.registerFix(doc.uri, diag, `Replace with 'except Exception:'`, 'except Exception:', range);
+        if (diag) {
+          diagnostics.push(diag);
+          this.registerFix(doc.uri, diag, "Change to 'except Exception:'", 'except Exception:', range);
+        }
       }
 
-      // Rule: Python 2 print statement
-      const py2Print = trimmed.match(/^print\s+("[^"]*"|'[^']*'|\w+)/);
-      if (py2Print) {
-        const startCol = lineText.indexOf(trimmed);
-        const range = new vscode.Range(lineIdx, startCol, lineIdx, startCol + trimmed.length);
-        const arg = py2Print[1];
-        diagnostics.push(
-          this.createDiagnostic(
-            range,
-            `SyntaxError: Missing parentheses in call to 'print'. Did you mean print(${arg})?`,
-            vscode.DiagnosticSeverity.Error,
-            'python-missing-parens-print',
-            'Fixora Python'
-          )
+      // Rule: Mutable default argument in def
+      const mutableDefault = lineText.match(/def\s+[a-zA-Z0-9_]+\s*\([^)]*=\s*(\[\]|\{\})\s*[,)]/);
+      if (mutableDefault) {
+        const start = lineText.indexOf(mutableDefault[1]);
+        const range = this.createClampedRange(doc, lineIdx, start, start + mutableDefault[1].length);
+        const diag = this.createDiagnostic(
+          range,
+          'Dangerous mutable default parameter. Use None as default value and assign in function body.',
+          vscode.DiagnosticSeverity.Warning,
+          'python-mutable-default',
+          BRANDING.PRODUCT_NAME,
+          seen
         );
+        if (diag) {
+          diagnostics.push(diag);
+          this.registerFix(doc.uri, diag, 'Replace mutable default with None', 'None', range);
+        }
       }
     });
   }
 
-  /**
-   * HTML Syntax & Accessibility Linter
-   */
+  // ==========================================
+  // 3. HTML Syntax & Accessibility
+  // ==========================================
   private lintHtml(
     doc: vscode.TextDocument,
     code: string,
-    diagnostics: vscode.Diagnostic[]
+    diagnostics: vscode.Diagnostic[],
+    seen: Set<string>
   ): void {
     const lines = code.split(/\r?\n/);
-
-    // Track tag nesting
-    const tagStack: Array<{ tag: string; line: number }> = [];
+    const tagStack: { tag: string; line: number }[] = [];
     const voidTags = new Set([
-      'area', 'base', 'br', 'col', 'embed', 'hr', 'img', 'input', 'link', 'meta', 'param', 'source', 'track', 'wbr'
-    ]);
-    const deprecatedTags = new Set([
-      'center', 'font', 'marquee', 'blink', 'strike', 'big', 'u'
+      'area', 'base', 'br', 'col', 'embed', 'hr', 'img', 'input', 'link', 'meta', 'param', 'source', 'track', 'wbr',
     ]);
 
     lines.forEach((lineText, lineIdx) => {
-      // Rule 1: <img> tag without alt attribute
-      const imgMatch = lineText.match(/<img\b([^>]*)>/gi);
-      if (imgMatch) {
-        imgMatch.forEach((tagStr) => {
-          if (!tagStr.includes('alt=')) {
-            const startCol = lineText.indexOf(tagStr);
-            const range = new vscode.Range(lineIdx, startCol, lineIdx, startCol + tagStr.length);
-            const diag = this.createDiagnostic(
-              range,
-              `Accessibility: <img> element must have an 'alt' attribute for screen readers`,
-              vscode.DiagnosticSeverity.Warning,
-              'html-img-alt',
-              'Fixora HTML'
-            );
-            diagnostics.push(diag);
-            const replacement = tagStr.replace(/<img\b/, '<img alt=""');
-            this.registerFix(doc.uri, diag, `Add empty alt="" attribute`, replacement, range);
-          }
-        });
-      }
-
-      // Rule 2: Deprecated HTML elements
-      for (const dep of Array.from(deprecatedTags)) {
-        const regex = new RegExp(`<${dep}\\b`, 'gi');
-        let match;
-        while ((match = regex.exec(lineText)) !== null) {
-          const range = new vscode.Range(lineIdx, match.index, lineIdx, match.index + dep.length + 1);
-          diagnostics.push(
-            this.createDiagnostic(
-              range,
-              `HTML Element '<${dep}>' is obsolete and deprecated in HTML5`,
-              vscode.DiagnosticSeverity.Warning,
-              'html-deprecated-tag',
-              'Fixora HTML'
-            )
+      // 1. Rule: img tags without alt
+      const imgRegex = /<img\b([^>]*)>/gi;
+      let imgMatch: RegExpExecArray | null;
+      while ((imgMatch = imgRegex.exec(lineText)) !== null) {
+        const attrs = imgMatch[1];
+        if (!/\balt\s*=/i.test(attrs)) {
+          const range = this.createClampedRange(doc, lineIdx, imgMatch.index, imgMatch.index + imgMatch[0].length);
+          const diag = this.createDiagnostic(
+            range,
+            "Images must have an 'alt' attribute for accessibility compliance (WCAG 1.1.1 / HTMLHint)",
+            vscode.DiagnosticSeverity.Warning,
+            'html-img-alt',
+            BRANDING.PRODUCT_NAME,
+            seen
           );
+          if (diag) {
+            diagnostics.push(diag);
+            const fixedTag = imgMatch[0].replace(/<img\b/i, '<img alt=""');
+            this.registerFix(doc.uri, diag, 'Add empty alt="" attribute', fixedTag, range);
+          }
         }
       }
 
-      // Rule 3: Find unclosed opening tags / mismatched closing tags
-      const tagRegex = /<\/?([a-zA-Z0-9-]+)(?:\s+[^>]*?)?(\/?)>/g;
-      let tagMatch;
-      while ((tagMatch = tagRegex.exec(lineText)) !== null) {
-        const fullTag = tagMatch[0];
-        const tagName = tagMatch[1].toLowerCase();
-        const isClosing = fullTag.startsWith('</');
-        const isSelfClosing = tagMatch[2] === '/' || voidTags.has(tagName);
+      // 2. Rule: Deprecated tags (<center>, <font>, <marquee>, <strike>)
+      const depRegex = /<(center|font|marquee|strike|big)\b/gi;
+      let depMatch: RegExpExecArray | null;
+      while ((depMatch = depRegex.exec(lineText)) !== null) {
+        const tagName = depMatch[1].toLowerCase();
+        const range = this.createClampedRange(doc, lineIdx, depMatch.index, depMatch.index + depMatch[0].length);
+        const diag = this.createDiagnostic(
+          range,
+          `The '<${tagName}>' is obsolete in modern HTML5. Use modern CSS layout and styling instead.`,
+          vscode.DiagnosticSeverity.Warning,
+          'html-deprecated-tag',
+          BRANDING.PRODUCT_NAME,
+          seen
+        );
+        if (diag) {
+          diagnostics.push(diag);
+        }
+      }
 
-        if (tagName.startsWith('!') || tagName === 'doctype') continue;
+      // 3. Simple unclosed tag tracking
+      const tagOpenRegex = /<([a-zA-Z0-9_-]+)(?:\s+[^>]*)?(?<!\/)>/g;
+      let openMatch: RegExpExecArray | null;
+      while ((openMatch = tagOpenRegex.exec(lineText)) !== null) {
+        const t = openMatch[1].toLowerCase();
+        if (!voidTags.has(t) && !lineText.includes(`</${t}>`)) {
+          tagStack.push({ tag: t, line: lineIdx });
+        }
+      }
 
-        if (isClosing) {
-          if (tagStack.length > 0) {
-            const last = tagStack[tagStack.length - 1];
-            if (last.tag === tagName) {
-              tagStack.pop();
-            } else {
-              const range = new vscode.Range(lineIdx, tagMatch.index, lineIdx, tagMatch.index + fullTag.length);
-              diagnostics.push(
-                this.createDiagnostic(
-                  range,
-                  `HTML Mismatch: Closing tag '</${tagName}>' does not match opening tag '<${last.tag}>' at line ${last.line + 1}`,
-                  vscode.DiagnosticSeverity.Error,
-                  'html-mismatched-tag',
-                  'Fixora HTML'
-                )
-              );
-            }
+      const tagCloseRegex = /<\/([a-zA-Z0-9_-]+)>/g;
+      let closeMatch: RegExpExecArray | null;
+      while ((closeMatch = tagCloseRegex.exec(lineText)) !== null) {
+        const t = closeMatch[1].toLowerCase();
+        const top = tagStack[tagStack.length - 1];
+        if (top && top.tag === t) {
+          tagStack.pop();
+        } else if (tagStack.length > 0) {
+          const range = this.createClampedRange(doc, lineIdx, closeMatch.index, closeMatch.index + closeMatch[0].length);
+          const diag = this.createDiagnostic(
+            range,
+            `Unexpected closing tag '</${t}>'. Expected closing tag for '<${top ? top.tag : 'unknown'}'.`,
+            vscode.DiagnosticSeverity.Error,
+            'html-mismatched-tag',
+            BRANDING.PRODUCT_NAME,
+            seen
+          );
+          if (diag) {
+            diagnostics.push(diag);
           }
-        } else if (!isSelfClosing) {
-          tagStack.push({ tag: tagName, line: lineIdx });
         }
       }
     });
-
-    // Check remaining unclosed tags
-    for (const unclosed of tagStack) {
-      if (!['p', 'li', 'td', 'th', 'tr'].includes(unclosed.tag)) {
-        diagnostics.push(
-          this.createDiagnostic(
-            new vscode.Range(unclosed.line, 0, unclosed.line, lines[unclosed.line].length),
-            `HTML SyntaxError: Unclosed tag '<${unclosed.tag}>'`,
-            vscode.DiagnosticSeverity.Error,
-            'html-unclosed-tag',
-            'Fixora HTML'
-          )
-        );
-      }
-    }
   }
 
-  /**
-   * CSS / SCSS Stylelint & Syntax Linter
-   */
+  // ==========================================
+  // 4. CSS / SCSS / LESS
+  // ==========================================
   private lintCss(
     doc: vscode.TextDocument,
     code: string,
-    diagnostics: vscode.Diagnostic[]
+    diagnostics: vscode.Diagnostic[],
+    seen: Set<string>
   ): void {
     const lines = code.split(/\r?\n/);
-    let insideRule = false;
     const seenPropertiesInBlock = new Set<string>();
 
     lines.forEach((lineText, lineIdx) => {
       const trimmed = lineText.trim();
-      if (!trimmed || trimmed.startsWith('/*')) return;
+      if (!trimmed || trimmed.startsWith('/*') || trimmed.startsWith('//')) return;
 
       if (trimmed.includes('{')) {
-        insideRule = true;
         seenPropertiesInBlock.clear();
       }
 
-      if (trimmed.includes('}')) {
-        insideRule = false;
-        seenPropertiesInBlock.clear();
-      }
-
-      if (insideRule && trimmed.includes(':') && !trimmed.includes('{')) {
-        // Rule 1: Missing semicolon at end of declaration
-        if (!trimmed.endsWith(';') && !trimmed.endsWith('{') && !trimmed.endsWith('}')) {
-          const range = new vscode.Range(lineIdx, 0, lineIdx, lineText.length);
+      if (trimmed.includes(':') && !trimmed.startsWith('@')) {
+        // Rule: missing unit on non-zero numeric length (e.g. width: 100;)
+        const missingUnitMatch = trimmed.match(/^([a-zA-Z-]+)\s*:\s*([1-9][0-9]*)\s*;/);
+        if (
+          missingUnitMatch &&
+          [
+            'width', 'height', 'margin', 'padding', 'font-size', 'top', 'bottom', 'left', 'right',
+          ].includes(missingUnitMatch[1].toLowerCase())
+        ) {
+          const prop = missingUnitMatch[1];
+          const val = missingUnitMatch[2];
+          const startCol = lineText.indexOf(val);
+          const range = this.createClampedRange(doc, lineIdx, startCol, startCol + val.length);
           const diag = this.createDiagnostic(
             range,
-            `CSS Syntax: Missing semicolon ';' at end of declaration`,
-            vscode.DiagnosticSeverity.Error,
-            'css-missing-semicolon',
-            'Fixora CSS'
-          );
-          diagnostics.push(diag);
-          this.registerFix(doc.uri, diag, `Add ';' at end of line`, `${lineText};`, range);
-        }
-
-        // Rule 2: Zero units (e.g. 0px -> 0)
-        const zeroUnitMatch = lineText.match(/:\s*0(px|em|rem|pt|cm|mm|in)\b/);
-        if (zeroUnitMatch && zeroUnitMatch.index !== undefined) {
-          const range = new vscode.Range(
-            lineIdx,
-            zeroUnitMatch.index + 2,
-            lineIdx,
-            zeroUnitMatch.index + zeroUnitMatch[0].length
-          );
-          const diag = this.createDiagnostic(
-            range,
-            `Unexpected unit on zero length '0${zeroUnitMatch[1]}', prefer '0'`,
+            `CSS length unit missing: '${val}' in '${prop}' expected '${val}px' (css-missing-unit)`,
             vscode.DiagnosticSeverity.Warning,
-            'css-zero-units',
-            'Fixora CSS'
+            'css-missing-unit',
+            BRANDING.PRODUCT_NAME,
+            seen
           );
-          diagnostics.push(diag);
-          this.registerFix(doc.uri, diag, `Replace '0${zeroUnitMatch[1]}' with '0'`, '0', range);
+          if (diag) {
+            diagnostics.push(diag);
+            this.registerFix(doc.uri, diag, `Add 'px' unit: '${val}px'`, `${val}px`, range);
+          }
         }
 
-        // Rule 3: Missing units on non-zero dimension (e.g. width: 200;)
-        const missingUnit = lineText.match(/\b(width|height|margin|padding|top|left|right|bottom|font-size)\s*:\s*([1-9]\d*)\s*;/);
-        if (missingUnit && missingUnit.index !== undefined) {
-          const propName = missingUnit[1];
-          const val = missingUnit[2];
-          const range = new vscode.Range(lineIdx, missingUnit.index, lineIdx, missingUnit.index + missingUnit[0].length);
-          const replacement = `${propName}: ${val}px;`;
+        // Rule: unnecessary zero units (margin: 0px -> 0)
+        const zeroUnitMatch = trimmed.match(/:\s*(0(px|em|rem|%|pt|vh|vw))\b/);
+        if (zeroUnitMatch) {
+          const raw = zeroUnitMatch[1];
+          const startCol = lineText.indexOf(raw);
+          const range = this.createClampedRange(doc, lineIdx, startCol, startCol + raw.length);
           const diag = this.createDiagnostic(
             range,
-            `CSS Syntax: Missing length unit for '${propName}: ${val}', expected '${val}px'`,
-            vscode.DiagnosticSeverity.Error,
-            'css-missing-unit',
-            'Fixora CSS'
+            `Unexpected unit on zero length '${raw}'. Use '0' (css-zero-units)`,
+            vscode.DiagnosticSeverity.Information,
+            'css-zero-units',
+            BRANDING.PRODUCT_NAME,
+            seen
           );
-          diagnostics.push(diag);
-          this.registerFix(doc.uri, diag, `Add 'px' unit: '${replacement}'`, replacement, range);
+          if (diag) {
+            diagnostics.push(diag);
+            this.registerFix(doc.uri, diag, "Replace with '0'", '0', range);
+          }
         }
 
-        // Rule 4: Duplicate properties in the same block
+        // Rule: Duplicate properties in the same block
         const propMatch = trimmed.match(/^([a-zA-Z-]+)\s*:/);
         if (propMatch) {
           const propName = propMatch[1].toLowerCase();
           if (seenPropertiesInBlock.has(propName)) {
             const startCol = lineText.indexOf(propMatch[1]);
-            const range = new vscode.Range(lineIdx, startCol, lineIdx, startCol + propMatch[1].length);
-            diagnostics.push(
-              this.createDiagnostic(
-                range,
-                `Duplicate CSS property '${propName}' found in ruleset`,
-                vscode.DiagnosticSeverity.Warning,
-                'css-duplicate-property',
-                'Fixora CSS'
-              )
+            const range = this.createClampedRange(doc, lineIdx, startCol, startCol + propMatch[1].length);
+            const diag = this.createDiagnostic(
+              range,
+              `Duplicate CSS property '${propName}' found in ruleset`,
+              vscode.DiagnosticSeverity.Warning,
+              'css-duplicate-property',
+              BRANDING.PRODUCT_NAME,
+              seen
             );
+            if (diag) {
+              diagnostics.push(diag);
+            }
           } else {
             seenPropertiesInBlock.add(propName);
           }
@@ -625,13 +692,295 @@ export class RealtimeLinter implements vscode.CodeActionProvider {
     });
   }
 
+  // ==========================================
+  // 5. Java
+  // ==========================================
+  private lintJava(
+    doc: vscode.TextDocument,
+    code: string,
+    diagnostics: vscode.Diagnostic[],
+    seen: Set<string>
+  ): void {
+    const lines = code.split(/\r?\n/);
+
+    lines.forEach((lineText, lineIdx) => {
+      const trimmed = lineText.trim();
+      if (!trimmed || trimmed.startsWith('//') || trimmed.startsWith('*')) return;
+
+      // Rule: String equality with == instead of .equals()
+      const strEqMatch = lineText.match(/(?<=\s)(==|!=)\s*"([^"]*)"/);
+      if (strEqMatch && strEqMatch.index !== undefined) {
+        const range = this.createClampedRange(doc, lineIdx, strEqMatch.index, strEqMatch.index + 2);
+        const diag = this.createDiagnostic(
+          range,
+          'Comparing strings with "==" checks identity, not content. Use .equals() or Objects.equals() instead.',
+          vscode.DiagnosticSeverity.Warning,
+          'java-string-equality',
+          BRANDING.PRODUCT_NAME,
+          seen
+        );
+        if (diag) {
+          diagnostics.push(diag);
+        }
+      }
+
+      // Rule: Empty catch block
+      if (/catch\s*\([^)]+\)\s*\{\s*\}/.test(trimmed)) {
+        const start = lineText.indexOf('catch');
+        const range = this.createClampedRange(doc, lineIdx, start, start + trimmed.length);
+        const diag = this.createDiagnostic(
+          range,
+          'Empty catch block suppresses errors silently. Log exception or rethrow.',
+          vscode.DiagnosticSeverity.Warning,
+          'java-empty-catch',
+          BRANDING.PRODUCT_NAME,
+          seen
+        );
+        if (diag) {
+          diagnostics.push(diag);
+        }
+      }
+
+      // Rule: e.printStackTrace() in production
+      if (/\.printStackTrace\(\)/.test(lineText)) {
+        const start = lineText.indexOf('.printStackTrace');
+        const range = this.createClampedRange(doc, lineIdx, start, start + 18);
+        const diag = this.createDiagnostic(
+          range,
+          'Avoid System/PrintStackTrace in production Java. Use a standard logger (SLF4J / Log4j2).',
+          vscode.DiagnosticSeverity.Information,
+          'java-print-stack-trace',
+          BRANDING.PRODUCT_NAME,
+          seen
+        );
+        if (diag) {
+          diagnostics.push(diag);
+        }
+      }
+    });
+  }
+
+  // ==========================================
+  // 6. C & C++
+  // ==========================================
+  private lintCAndCpp(
+    doc: vscode.TextDocument,
+    code: string,
+    diagnostics: vscode.Diagnostic[],
+    seen: Set<string>
+  ): void {
+    const lines = code.split(/\r?\n/);
+
+    lines.forEach((lineText, lineIdx) => {
+      const trimmed = lineText.trim();
+      if (!trimmed || trimmed.startsWith('//') || trimmed.startsWith('/*')) return;
+
+      // Rule: Unsafe C library functions (gets, strcpy, sprintf)
+      const unsafeMatch = lineText.match(/\b(gets|strcpy|sprintf|strcat)\s*\(/);
+      if (unsafeMatch && unsafeMatch.index !== undefined) {
+        const fn = unsafeMatch[1];
+        const range = this.createClampedRange(doc, lineIdx, unsafeMatch.index, unsafeMatch.index + fn.length);
+        const replacement = fn === 'gets' ? 'fgets' : fn === 'strcpy' ? 'strncpy' : fn === 'sprintf' ? 'snprintf' : 'strncat';
+        const diag = this.createDiagnostic(
+          range,
+          `Dangerous buffer overflow function '${fn}'. Use bounded safe alternative '${replacement}' instead.`,
+          vscode.DiagnosticSeverity.Error,
+          'c-unsafe-func',
+          BRANDING.PRODUCT_NAME,
+          seen
+        );
+        if (diag) {
+          diagnostics.push(diag);
+          this.registerFix(doc.uri, diag, `Replace with '${replacement}'`, replacement, range);
+        }
+      }
+
+      // Rule: Format string vulnerability: printf(user_input)
+      const printfMatch = lineText.match(/\bprintf\s*\(\s*([a-zA-Z0-9_]+)\s*\)/);
+      if (printfMatch && printfMatch.index !== undefined) {
+        const varName = printfMatch[1];
+        const range = this.createClampedRange(doc, lineIdx, printfMatch.index, printfMatch.index + printfMatch[0].length);
+        const diag = this.createDiagnostic(
+          range,
+          `Format string vulnerability: Passing variable '${varName}' directly to printf. Use 'printf("%s", ${varName})'.`,
+          vscode.DiagnosticSeverity.Error,
+          'c-format-string',
+          BRANDING.PRODUCT_NAME,
+          seen
+        );
+        if (diag) {
+          diagnostics.push(diag);
+          this.registerFix(doc.uri, diag, `Use printf("%s", ${varName})`, `printf("%s", ${varName})`, range);
+        }
+      }
+    });
+  }
+
+  // ==========================================
+  // 7. PHP
+  // ==========================================
+  private lintPhp(
+    doc: vscode.TextDocument,
+    code: string,
+    diagnostics: vscode.Diagnostic[],
+    seen: Set<string>
+  ): void {
+    const lines = code.split(/\r?\n/);
+
+    lines.forEach((lineText, lineIdx) => {
+      const trimmed = lineText.trim();
+      if (!trimmed || trimmed.startsWith('//') || trimmed.startsWith('#')) return;
+
+      // Rule: Short open tag (<? instead of <?php)
+      if (/^<\?(?!php|=|xml)/i.test(trimmed)) {
+        const start = lineText.indexOf('<?');
+        const range = this.createClampedRange(doc, lineIdx, start, start + 2);
+        const diag = this.createDiagnostic(
+          range,
+          "Avoid PHP short open tags '<?'. Use '<?php' for standard server portability.",
+          vscode.DiagnosticSeverity.Warning,
+          'php-short-tag',
+          BRANDING.PRODUCT_NAME,
+          seen
+        );
+        if (diag) {
+          diagnostics.push(diag);
+          this.registerFix(doc.uri, diag, "Replace with '<?php'", '<?php', range);
+        }
+      }
+
+      // Rule: Dangerous eval() usage
+      if (/\beval\s*\(/.test(lineText)) {
+        const start = lineText.indexOf('eval');
+        const range = this.createClampedRange(doc, lineIdx, start, start + 4);
+        const diag = this.createDiagnostic(
+          range,
+          "Dangerous 'eval()' execution. May lead to Remote Code Execution (RCE).",
+          vscode.DiagnosticSeverity.Error,
+          'php-eval-usage',
+          BRANDING.PRODUCT_NAME,
+          seen
+        );
+        if (diag) {
+          diagnostics.push(diag);
+        }
+      }
+
+      // Rule: Loose equality in PHP ==
+      const eqMatch = lineText.match(/(?<=\s)==(?=\s)/);
+      if (eqMatch && eqMatch.index !== undefined) {
+        const range = this.createClampedRange(doc, lineIdx, eqMatch.index, eqMatch.index + 2);
+        const diag = this.createDiagnostic(
+          range,
+          "PHP loose equality '==' can trigger subtle type juggling bugs. Prefer '==='.",
+          vscode.DiagnosticSeverity.Warning,
+          'php-loose-eq',
+          BRANDING.PRODUCT_NAME,
+          seen
+        );
+        if (diag) {
+          diagnostics.push(diag);
+          this.registerFix(doc.uri, diag, "Change to '==='", '===', range);
+        }
+      }
+    });
+  }
+
+  // ==========================================
+  // 8. SQL
+  // ==========================================
+  private lintSql(
+    doc: vscode.TextDocument,
+    code: string,
+    diagnostics: vscode.Diagnostic[],
+    seen: Set<string>
+  ): void {
+    const lines = code.split(/\r?\n/);
+
+    lines.forEach((lineText, lineIdx) => {
+      const trimmed = lineText.trim();
+      if (!trimmed || trimmed.startsWith('--')) return;
+
+      // Rule: SELECT * in production queries
+      const selectStarMatch = lineText.match(/\bSELECT\s+\*\s+FROM\b/i);
+      if (selectStarMatch && selectStarMatch.index !== undefined) {
+        const starIdx = lineText.indexOf('*', selectStarMatch.index);
+        const range = this.createClampedRange(doc, lineIdx, starIdx, starIdx + 1);
+        const diag = this.createDiagnostic(
+          range,
+          "Avoid 'SELECT *' in production queries. Specify explicit columns for performance and index coverage.",
+          vscode.DiagnosticSeverity.Information,
+          'sql-select-star',
+          BRANDING.PRODUCT_NAME,
+          seen
+        );
+        if (diag) {
+          diagnostics.push(diag);
+        }
+      }
+
+      // Rule: DELETE FROM or UPDATE without WHERE
+      if (
+        (/\bDELETE\s+FROM\s+[a-zA-Z0-9_.]+\s*;?$/i.test(trimmed) ||
+          /\bUPDATE\s+[a-zA-Z0-9_.]+\s+SET\s+[^;]+;?$/i.test(trimmed)) &&
+        !trimmed.toUpperCase().includes('WHERE')
+      ) {
+        const range = this.createClampedRange(doc, lineIdx, 0, trimmed.length);
+        const diag = this.createDiagnostic(
+          range,
+          'Critical: DELETE or UPDATE query without a WHERE clause will modify all rows in the table!',
+          vscode.DiagnosticSeverity.Error,
+          'sql-missing-where',
+          BRANDING.PRODUCT_NAME,
+          seen
+        );
+        if (diag) {
+          diagnostics.push(diag);
+        }
+      }
+    });
+  }
+
+  // ==========================================
+  // Helper & Provider Implementations
+  // ==========================================
+
+  private createClampedRange(
+    doc: vscode.TextDocument,
+    line: number,
+    startCol: number,
+    endCol: number
+  ): vscode.Range {
+    const totalLines = typeof doc.lineCount === 'number' && doc.lineCount > 0 ? doc.lineCount : 100000;
+    const clampedLine = Math.max(0, Math.min(totalLines - 1, line));
+    let lineLen = 500;
+    if (typeof doc.lineAt === 'function') {
+      try {
+        lineLen = doc.lineAt(clampedLine).text.length;
+      } catch {
+        lineLen = 500;
+      }
+    }
+    const clampedStart = Math.max(0, Math.min(lineLen, startCol));
+    const clampedEnd = Math.max(clampedStart, Math.min(lineLen, endCol));
+    return new vscode.Range(clampedLine, clampedStart, clampedLine, clampedEnd);
+  }
+
   private createDiagnostic(
     range: vscode.Range,
     message: string,
     severity: vscode.DiagnosticSeverity,
     code: string,
-    source: string
-  ): vscode.Diagnostic {
+    source: string,
+    seen: Set<string>
+  ): vscode.Diagnostic | null {
+    // Deduplication check
+    const hash = `${range.start.line}:${range.start.character}:${range.end.line}:${range.end.character}:${code}:${message}`;
+    if (seen.has(hash)) {
+      return null;
+    }
+    seen.add(hash);
+
     const diag = new vscode.Diagnostic(range, message, severity);
     diag.code = code;
     diag.source = source;
@@ -650,11 +999,11 @@ export class RealtimeLinter implements vscode.CodeActionProvider {
   }
 
   /**
-   * CodeActionProvider: Provides Quick Fixes for ESLint & Stylelint issues
+   * CodeActionProvider: Provides 1-click QuickFixes for detected issues
    */
   public provideCodeActions(
     document: vscode.TextDocument,
-    range: vscode.Range | vscode.Selection,
+    _range: vscode.Range | vscode.Selection,
     context: vscode.CodeActionContext
   ): vscode.CodeAction[] {
     const actions: vscode.CodeAction[] = [];
@@ -665,7 +1014,7 @@ export class RealtimeLinter implements vscode.CodeActionProvider {
 
       if (fix) {
         const action = new vscode.CodeAction(
-          `💡 Fixora AI (${diag.code}): ${fix.title}`,
+          `💡 ${BRANDING.PRODUCT_NAME} (${diag.code}): ${fix.title}`,
           vscode.CodeActionKind.QuickFix
         );
         const edit = new vscode.WorkspaceEdit();
@@ -681,6 +1030,79 @@ export class RealtimeLinter implements vscode.CodeActionProvider {
   }
 
   /**
+   * HoverProvider: Displays rich contextual markdown documentation on hover
+   */
+  public provideHover(
+    document: vscode.TextDocument,
+    position: vscode.Position
+  ): vscode.Hover | null {
+    const diags = vscode.languages.getDiagnostics(document.uri);
+    const activeDiag = diags.find((d) => d.range.contains(position) && d.source === BRANDING.PRODUCT_NAME);
+
+    if (!activeDiag) return null;
+
+    const severityLabel =
+      activeDiag.severity === vscode.DiagnosticSeverity.Error
+        ? '🔴 Critical Error'
+        : activeDiag.severity === vscode.DiagnosticSeverity.Warning
+        ? '⚠️ Warning'
+        : 'ℹ️ Information';
+
+    const md = new vscode.MarkdownString();
+    md.isTrusted = true;
+    md.appendMarkdown(`### ${BRANDING.PRODUCT_NAME}: ${activeDiag.code || 'Diagnostic'}\n`);
+    md.appendMarkdown(`**${severityLabel}**: ${activeDiag.message}\n\n`);
+    md.appendMarkdown(`--- \n`);
+    md.appendMarkdown(`[Explain Issue](command:fixora.explainError) &bull; [Open Assistant](command:fixora.openDashboard)`);
+
+    return new vscode.Hover(md, activeDiag.range);
+  }
+
+  /**
+   * Clears diagnostics and caches for a specific file URI.
+   */
+  public clearForUri(uri: vscode.Uri): void {
+    this.collection.delete(uri);
+    const uriStr = uri.toString();
+
+    // Cancel and clean pending timers & tokens
+    const timer = this.debounceTimers.get(uriStr);
+    if (timer) {
+      clearTimeout(timer);
+      this.debounceTimers.delete(uriStr);
+    }
+
+    const cts = this.cancellationMap.get(uriStr);
+    if (cts) {
+      cts.cancel();
+      cts.dispose();
+      this.cancellationMap.delete(uriStr);
+    }
+
+    // Clear fix entries for this document
+    const prefix = uriStr + ':';
+    for (const key of Array.from(this.fixMap.keys())) {
+      if (key.startsWith(prefix)) {
+        this.fixMap.delete(key);
+      }
+    }
+  }
+
+  public clearAllDiagnostics(): void {
+    this.collection.clear();
+    this.fixMap.clear();
+    for (const cts of this.cancellationMap.values()) {
+      cts.cancel();
+      cts.dispose();
+    }
+    this.cancellationMap.clear();
+    for (const t of this.debounceTimers.values()) {
+      clearTimeout(t);
+    }
+    this.debounceTimers.clear();
+  }
+
+  /**
    * Toggle linter on or off.
    */
   public toggle(forceState?: boolean): boolean {
@@ -691,7 +1113,7 @@ export class RealtimeLinter implements vscode.CodeActionProvider {
       this.lintDocument(vscode.window.activeTextEditor.document);
     }
     vscode.window.showInformationMessage(
-      `Fixora Real-time Linter (ESLint & Style): ${this.enabled ? 'Enabled' : 'Disabled'}`
+      `${BRANDING.PRODUCT_NAME} Real-time Linter (ESLint & Style): ${this.enabled ? 'Enabled' : 'Disabled'}`
     );
     return this.enabled;
   }
@@ -700,13 +1122,8 @@ export class RealtimeLinter implements vscode.CodeActionProvider {
     return this.enabled;
   }
 
-  public clearAllDiagnostics(): void {
-    this.collection.clear();
-    this.fixMap.clear();
-  }
-
   public dispose(): void {
-    if (this.debounceTimer) clearTimeout(this.debounceTimer);
+    this.clearAllDiagnostics();
     this.collection.dispose();
     this.disposables.forEach((d) => d.dispose());
   }

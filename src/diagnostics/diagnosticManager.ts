@@ -5,15 +5,18 @@ import { BRANDING } from '../constants/branding';
 
 /**
  * Manages the VS Code Problems panel diagnostics for Revion.
+ * Features deduplication, range clamping, and contextual hover documentation.
  */
-export class DiagnosticManager {
+export class DiagnosticManager implements vscode.HoverProvider {
   private static instance: DiagnosticManager;
   private collection: vscode.DiagnosticCollection;
   private findingMap = new Map<string, ReviewFinding>();
   private logger = Logger.getInstance();
+  private hoverDisposable?: vscode.Disposable;
 
   private constructor() {
     this.collection = vscode.languages.createDiagnosticCollection(BRANDING.PRODUCT_NAME);
+    this.hoverDisposable = vscode.languages.registerHoverProvider({ scheme: 'file' }, this);
   }
 
   public static getInstance(): DiagnosticManager {
@@ -24,16 +27,24 @@ export class DiagnosticManager {
   }
 
   /**
-   * Converts findings into VS Code Problem diagnostics and publishes them.
+   * Converts findings into VS Code Problem diagnostics, deduplicates, and publishes them.
    */
   public publishFindings(uri: vscode.Uri, findings: ReviewFinding[]): void {
     const diagnostics: vscode.Diagnostic[] = [];
+    const seen = new Set<string>();
 
     for (const finding of findings) {
-      const startLine = Math.max(0, finding.line - 1);
+      const startLine = Math.max(0, (finding.line || 1) - 1);
       const startCol = Math.max(0, (finding.column || 1) - 1);
       const endLine = finding.endLine ? Math.max(0, finding.endLine - 1) : startLine;
-      const endCol = finding.endColumn ? Math.max(0, finding.endColumn - 1) : 200;
+      const endCol = finding.endColumn ? Math.max(0, finding.endColumn - 1) : Math.max(startCol + 1, 200);
+
+      // Deduplication check
+      const dedupKey = `${startLine}:${startCol}:${finding.category}:${finding.title}`;
+      if (seen.has(dedupKey)) {
+        continue;
+      }
+      seen.add(dedupKey);
 
       const range = new vscode.Range(
         new vscode.Position(startLine, startCol),
@@ -50,7 +61,7 @@ export class DiagnosticManager {
       diagnostic.source = BRANDING.PRODUCT_NAME;
       diagnostic.code = `REVION-${finding.category.toUpperCase()}`;
 
-      // Associate finding for Quick Fix lookup
+      // Associate finding for Quick Fix & Hover lookup
       const key = this.getDiagnosticKey(uri, diagnostic);
       this.findingMap.set(key, finding);
 
@@ -59,6 +70,47 @@ export class DiagnosticManager {
 
     this.collection.set(uri, diagnostics);
     this.logger.info(`Published ${diagnostics.length} diagnostics for ${uri.fsPath}`);
+  }
+
+  /**
+   * HoverProvider implementation: provides rich markdown details for Revion Problem diagnostics.
+   */
+  public provideHover(
+    document: vscode.TextDocument,
+    position: vscode.Position
+  ): vscode.Hover | null {
+    const diags = vscode.languages.getDiagnostics(document.uri);
+    const revionDiag = diags.find(
+      (d) => d.range.contains(position) && (d.source === BRANDING.PRODUCT_NAME || d.source === 'Fixora AI')
+    );
+
+    if (!revionDiag) {
+      return null;
+    }
+
+    const finding = this.getFinding(document.uri, revionDiag);
+    if (!finding) {
+      return null;
+    }
+
+    const md = new vscode.MarkdownString();
+    md.isTrusted = true;
+    md.appendMarkdown(`### 🔍 ${BRANDING.PRODUCT_NAME}: ${finding.title}\n`);
+    md.appendMarkdown(`**Category**: \`${finding.category}\` &bull; **Severity**: \`${finding.severity.toUpperCase()}\` &bull; **Source**: \`${finding.source}\`\n\n`);
+    md.appendMarkdown(`${finding.explanation}\n\n`);
+
+    if (finding.whyItMatters) {
+      md.appendMarkdown(`> **Why it matters:** ${finding.whyItMatters}\n\n`);
+    }
+
+    if (finding.suggestedSolution) {
+      md.appendMarkdown(`💡 **Suggested Solution:** ${finding.suggestedSolution}\n\n`);
+    }
+
+    md.appendMarkdown(`---\n`);
+    md.appendMarkdown(`[Explain Error](command:fixora.explainError) &bull; [Open Assistant](command:fixora.openDashboard)`);
+
+    return new vscode.Hover(md, revionDiag.range);
   }
 
   /**
@@ -83,9 +135,18 @@ export class DiagnosticManager {
    */
   public clearForUri(uri: vscode.Uri): void {
     this.collection.delete(uri);
+    const prefix = uri.toString() + ':';
+    for (const key of Array.from(this.findingMap.keys())) {
+      if (key.startsWith(prefix)) {
+        this.findingMap.delete(key);
+      }
+    }
   }
 
   public dispose(): void {
+    if (this.hoverDisposable) {
+      this.hoverDisposable.dispose();
+    }
     this.collection.dispose();
   }
 

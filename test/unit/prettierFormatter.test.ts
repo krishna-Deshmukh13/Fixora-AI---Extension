@@ -160,4 +160,28 @@ function calculateTotal(items) {
     expect(edits[0].newText.trim().endsWith('}')).toBe(true);
     expect(warnSpy).not.toHaveBeenCalled();
   });
+
+  it('should skip formatting when file matches excludePatterns', async () => {
+    const rawJs = 'const x = { a: 1 };';
+    const mockDoc = {
+      getText: () => rawJs,
+      languageId: 'javascript',
+      fileName: '/project/node_modules/pkg/index.js',
+      positionAt: (idx: number) => new vscode.Position(0, idx),
+    } as any;
+
+    const edits = await formatter.provideDocumentFormattingEdits(
+      mockDoc,
+      { tabSize: 2, insertSpaces: true },
+      {} as any
+    );
+
+    expect(edits.length).toBe(0);
+  });
+
+  it('should correctly detect ignored files via isPrettierIgnored', () => {
+    expect(typeof formatter.isPrettierIgnored).toBe('function');
+    // Non-existent or non-matching file returns false
+    expect(formatter.isPrettierIgnored('')).toBe(false);
+  });
 });

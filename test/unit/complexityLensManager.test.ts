@@ -22,12 +22,12 @@ describe('ComplexityLensManager', () => {
     const disabledState = manager.toggle(false);
     expect(disabledState).toBe(false);
     expect(manager.isEnabled()).toBe(false);
-    expect(infoSpy).toHaveBeenCalledWith('Fixora Code Complexity Lens: Disabled');
+    expect(infoSpy).toHaveBeenCalledWith('Revion Code Complexity Lens: Disabled');
 
     const enabledState = manager.toggle(true);
     expect(enabledState).toBe(true);
     expect(manager.isEnabled()).toBe(true);
-    expect(infoSpy).toHaveBeenCalledWith('Fixora Code Complexity Lens: Enabled');
+    expect(infoSpy).toHaveBeenCalledWith('Revion Code Complexity Lens: Enabled');
   });
 
   it('should calculate decorations on right side for functions in document', () => {
@@ -124,7 +124,7 @@ function heavyBranches(x) {
 
     expect(actions).toBeDefined();
     expect(actions.length).toBeGreaterThanOrEqual(1);
-    expect(actions[0].title).toContain('Fixora AI: Replace with low-complexity alternative code');
+    expect(actions[0].title).toContain('Replace with low-complexity alternative code');
     expect(actions[0].edit).toBeDefined();
   });
 });

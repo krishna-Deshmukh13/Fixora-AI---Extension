@@ -480,6 +480,11 @@
           "default": true,
           "description": "Enable Revion Prettier Auto-Formatter: formats documents and heals syntax issues silently."
         },
+        "fixora.formatter.autoHealSyntax": {
+          "type": "boolean",
+          "default": true,
+          "description": "Automatically heal syntax errors (unclosed brackets, quotes, tags, stray tokens) during formatting."
+        },
         "fixora.linter.enabled": {
           "type": "boolean",
           "default": true,

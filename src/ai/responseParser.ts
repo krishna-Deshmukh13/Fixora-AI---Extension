@@ -22,6 +22,7 @@ const RawFindingSchema = z.object({
   suggestedSolution: z.string().default(''),
   suggestedFix: z.string().optional(),
   originalCodeSnippet: z.string().optional(),
+  evidence: z.string().optional(),
   confidence: z.number().optional().default(0.9),
   conceptName: z.string().optional(),
   learningNote: z.string().optional(),
@@ -43,6 +44,10 @@ const RawErrorExplanationSchema = z.object({
   explanationOfCorrection: z.string().default(''),
   conceptName: z.string().optional(),
   learningTakeaway: z.string().optional(),
+  inferredCauses: z.array(z.string()).optional(),
+  confirmedCauses: z.array(z.string()).optional(),
+  relatedReferences: z.array(z.string()).optional(),
+  suggestedActions: z.array(z.string()).optional(),
 });
 
 // Zod Schema for Fix Generation Response
@@ -127,6 +132,7 @@ export class ResponseParser {
           suggestedSolution: raw.suggestedSolution,
           suggestedFix: raw.suggestedFix,
           originalCodeSnippet: raw.originalCodeSnippet,
+          evidence: raw.evidence || raw.originalCodeSnippet,
           confidence: Math.min(1.0, Math.max(0.0, raw.confidence)),
           source: 'ai',
           conceptName: raw.conceptName,
@@ -171,6 +177,10 @@ export class ResponseParser {
         explanationOfCorrection: validated.explanationOfCorrection,
         conceptName: validated.conceptName,
         learningTakeaway: validated.learningTakeaway,
+        inferredCauses: validated.inferredCauses || [],
+        confirmedCauses: validated.confirmedCauses || [],
+        relatedReferences: validated.relatedReferences || [],
+        suggestedActions: validated.suggestedActions || [],
       };
     } catch (err: any) {
       this.logger.error('Failed to parse AI error explanation JSON response', err);
@@ -181,6 +191,10 @@ export class ResponseParser {
         rootCause: 'Unstructured model response.',
         howToFix: 'Please check the model response text directly.',
         explanationOfCorrection: '',
+        inferredCauses: ['Model generated unstructured explanation'],
+        confirmedCauses: [],
+        relatedReferences: [],
+        suggestedActions: ['Inspect stack trace and referenced lines'],
       };
     }
   }

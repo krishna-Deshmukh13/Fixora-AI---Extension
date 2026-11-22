@@ -117,6 +117,28 @@ export class FixEngine {
     }
 
     const lineObj = document.lineAt(targetLine);
+
+    // Validate patch applicability against current document line/content
+    if (finding.originalCodeSnippet || finding.evidence) {
+      const expectedSnippet = (finding.evidence || finding.originalCodeSnippet || '').trim();
+      const currentLineText = lineObj.text.trim();
+      if (
+        expectedSnippet.length > 5 &&
+        !currentLineText.includes(expectedSnippet) &&
+        !expectedSnippet.includes(currentLineText)
+      ) {
+        const proceed = await vscode.window.showWarningMessage(
+          `${BRANDING.PRODUCT_NAME}: Target code at line ${finding.line} has changed since the review finding was generated. Apply anyway?`,
+          'Apply Anyway',
+          'Cancel'
+        );
+        if (proceed !== 'Apply Anyway') {
+          this.logger.info(`Fix cancelled due to modified target line: ${finding.id}`);
+          return false;
+        }
+      }
+    }
+
     const edit = new vscode.WorkspaceEdit();
 
     // Target the entire line or endLine range

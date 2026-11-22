@@ -3,6 +3,8 @@ import * as path from 'path';
 import * as fs from 'fs';
 import { Logger } from '../utils/logger';
 import { SyntaxHealer } from './syntaxHealer';
+import { BRANDING } from '../constants/branding';
+import { FileUtils } from '../utils/fileUtils';
 
 // Prettier standalone and official parser plugins
 const prettier = require('prettier/standalone');
@@ -52,7 +54,7 @@ export class PrettierFormatter
   public toggle(forceState?: boolean): boolean {
     this.enabled = forceState !== undefined ? forceState : !this.enabled;
     vscode.window.showInformationMessage(
-      `Fixora Prettier Formatter: ${this.enabled ? 'Enabled' : 'Disabled'}`
+      `${BRANDING.PRODUCT_NAME} Formatter: ${this.enabled ? 'Enabled' : 'Disabled'}`
     );
     return this.enabled;
   }
@@ -95,6 +97,11 @@ export class PrettierFormatter
       return [];
     }
 
+    if (document.fileName && (this.isPrettierIgnored(document.fileName) || FileUtils.isFileExcluded(document.fileName))) {
+      this.logger.debug(`File ${document.fileName} is excluded or ignored by .prettierignore`);
+      return [];
+    }
+
     const rawText = range ? document.getText(range) : document.getText();
     if (!rawText.trim()) {
       return [];
@@ -123,49 +130,96 @@ export class PrettierFormatter
 
       return [vscode.TextEdit.replace(editRange, formatted)];
     } catch (primaryErr: any) {
-      // Automatic Syntax Healing:
-      // Try to auto-repair missing brackets, unclosed tags, and stray tokens
-      const repairResult = SyntaxHealer.repair(rawText, document.languageId);
+      const config = vscode.workspace.getConfiguration('fixora.formatter');
+      const autoHealEnabled = config.get<boolean>('autoHealSyntax', true);
 
-      if (repairResult.repaired) {
-        try {
-          const healedAndFormatted = await prettier.format(repairResult.code, options);
-          this.logger.info(
-            `Fixora Auto-Healer successfully repaired and formatted ${document.fileName}: ${repairResult.fixes.join(', ')}`
-          );
+      if (autoHealEnabled) {
+        // Automatic Syntax Healing (opt-in only):
+        // Try to auto-repair missing brackets, unclosed tags, and stray tokens
+        const repairResult = SyntaxHealer.repair(rawText, document.languageId);
 
-          if (typeof (vscode.window as any).setStatusBarMessage === 'function') {
-            vscode.window.setStatusBarMessage(
-              `$(check) Fixora: Auto-healed ${repairResult.fixes.length} syntax error(s)`,
-              4000
+        if (repairResult.repaired) {
+          try {
+            const healedAndFormatted = await prettier.format(repairResult.code, options);
+            this.logger.info(
+              `${BRANDING.PRODUCT_NAME} Auto-Healer successfully repaired and formatted ${document.fileName}: ${repairResult.fixes.join(', ')}`
             );
+
+            if (typeof (vscode.window as any).setStatusBarMessage === 'function') {
+              vscode.window.setStatusBarMessage(
+                `$(check) ${BRANDING.PRODUCT_NAME}: Auto-healed ${repairResult.fixes.length} syntax error(s)`,
+                4000
+              );
+            }
+
+            const editRange =
+              range ||
+              new vscode.Range(
+                document.positionAt(0),
+                document.positionAt(document.getText().length)
+              );
+
+            return [vscode.TextEdit.replace(editRange, healedAndFormatted)];
+          } catch {
+            // If formatting repaired code fails, fall through to silent skip
           }
-
-          const editRange =
-            range ||
-            new vscode.Range(
-              document.positionAt(0),
-              document.positionAt(document.getText().length)
-            );
-
-          return [vscode.TextEdit.replace(editRange, healedAndFormatted)];
-        } catch {
-          // If formatting repaired code fails, fall through to silent skip
         }
       }
 
-      // If syntax cannot be automatically repaired, skip formatting silently without disruptive popups
+      // If syntax cannot be automatically repaired or auto-heal is disabled, skip formatting silently
       this.logger.warn(
-        `Fixora Formatter skipped formatting ${document.fileName} due to active syntax error: ${primaryErr?.message || primaryErr}`
+        `${BRANDING.PRODUCT_NAME} Formatter skipped formatting ${document.fileName} due to active syntax error: ${primaryErr?.message || primaryErr}`
       );
       if (typeof (vscode.window as any).setStatusBarMessage === 'function') {
         vscode.window.setStatusBarMessage(
-          '$(info) Fixora: File has syntax errors, formatting skipped',
+          `$(info) ${BRANDING.PRODUCT_NAME}: File has syntax errors, formatting skipped`,
           3000
         );
       }
       return [];
     }
+  }
+
+  /**
+   * Checks whether the given file is ignored by .prettierignore.
+   */
+  public isPrettierIgnored(filePath: string): boolean {
+    try {
+      if (!filePath) {
+        return false;
+      }
+      const absolutePath = path.resolve(filePath);
+      let dir = path.dirname(absolutePath);
+      const root = path.parse(dir).root;
+
+      while (dir && dir !== root) {
+        const ignorePath = path.join(dir, '.prettierignore');
+        if (fs.existsSync(ignorePath)) {
+          const content = fs.readFileSync(ignorePath, 'utf8');
+          const lines = content
+            .split(/\r?\n/)
+            .map((l) => l.trim())
+            .filter((l) => l.length > 0 && !l.startsWith('#'));
+
+          const relPath = path.relative(dir, absolutePath).replace(/\\/g, '/');
+          const normalizedAbs = absolutePath.replace(/\\/g, '/');
+
+          for (const line of lines) {
+            if (FileUtils.matchGlob(relPath, line) || FileUtils.matchGlob(normalizedAbs, line)) {
+              return true;
+            }
+          }
+        }
+        const parentDir = path.dirname(dir);
+        if (parentDir === dir) {
+          break;
+        }
+        dir = parentDir;
+      }
+    } catch {
+      // Ignore reading errors
+    }
+    return false;
   }
 
   /**
@@ -315,7 +369,7 @@ export class PrettierFormatter
     }
 
     this.logger.info(
-      `Fixora Prettier Formatter registered for ${SUPPORTED_FORMAT_LANGUAGES.length} languages.`
+      `${BRANDING.PRODUCT_NAME} Formatter registered for ${SUPPORTED_FORMAT_LANGUAGES.length} languages.`
     );
     return disposables;
   }

@@ -35,6 +35,7 @@ export interface ReviewFinding {
   suggestedFix?: string;
   confidence: number; // 0.0 to 1.0
   source: 'static' | 'ai' | 'combined';
+  evidence?: string;
   analyzerName?: string;
   conceptName?: string;
   learningNote?: string;

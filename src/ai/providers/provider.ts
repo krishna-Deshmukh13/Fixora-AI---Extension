@@ -62,4 +62,19 @@ export interface AIProvider {
    * Perform an algorithmic and performance analysis.
    */
   reviewPerformance(options: AIAnalysisOptions): Promise<ReviewResult>;
+
+  /**
+   * Optional streaming chat method for interactive Assistant workflow.
+   */
+  streamChat?(
+    prompt: string,
+    onChunk: (chunk: string) => void,
+    systemInstruction?: string,
+    abortSignal?: AbortSignal
+  ): Promise<string>;
+
+  /**
+   * Optional token count estimation.
+   */
+  estimateTokens?(text: string): number;
 }

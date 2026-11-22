@@ -191,6 +191,131 @@ def calculate(x)
     });
   });
 
+  describe('Java Linter', () => {
+    it('should catch string equality with == and empty catch blocks', () => {
+      const javaCode = `
+public class Main {
+    public void test(String s) {
+        if (s == "admin") {
+            try {
+                process();
+            } catch (Exception e) {}
+        }
+    }
+}
+`;
+      const doc = {
+        uri: vscode.Uri.file('/app/Main.java'),
+        languageId: 'java',
+        getText: () => javaCode,
+      } as any;
+
+      const diags = linter.lintDocument(doc);
+      expect(diags.length).toBeGreaterThanOrEqual(2);
+
+      const strEq = diags.find((d) => d.code === 'java-string-equality');
+      expect(strEq).toBeDefined();
+
+      const emptyCatch = diags.find((d) => d.code === 'java-empty-catch');
+      expect(emptyCatch).toBeDefined();
+    });
+  });
+
+  describe('C / C++ Linter', () => {
+    it('should catch dangerous buffer overflow functions and format string vulnerabilities', () => {
+      const cCode = `
+#include <stdio.h>
+void run() {
+    char buf[64];
+    gets(buf);
+    printf(buf);
+}
+`;
+      const doc = {
+        uri: vscode.Uri.file('/app/main.c'),
+        languageId: 'c',
+        getText: () => cCode,
+      } as any;
+
+      const diags = linter.lintDocument(doc);
+      expect(diags.length).toBeGreaterThanOrEqual(2);
+
+      const unsafeFunc = diags.find((d) => d.code === 'c-unsafe-func');
+      expect(unsafeFunc).toBeDefined();
+
+      const formatStr = diags.find((d) => d.code === 'c-format-string');
+      expect(formatStr).toBeDefined();
+    });
+  });
+
+  describe('PHP & SQL Linters', () => {
+    it('should catch PHP short tags, loose equality, and eval usage', () => {
+      const phpCode = `
+<?
+if ($x == 10) {
+    eval($code);
+}
+`;
+      const doc = {
+        uri: vscode.Uri.file('/app/index.php'),
+        languageId: 'php',
+        getText: () => phpCode,
+      } as any;
+
+      const diags = linter.lintDocument(doc);
+      expect(diags.length).toBeGreaterThanOrEqual(3);
+
+      expect(diags.find((d) => d.code === 'php-short-tag')).toBeDefined();
+      expect(diags.find((d) => d.code === 'php-loose-eq')).toBeDefined();
+      expect(diags.find((d) => d.code === 'php-eval-usage')).toBeDefined();
+    });
+
+    it('should catch SELECT * and missing WHERE in SQL', () => {
+      const sqlCode = `
+SELECT * FROM users;
+DELETE FROM accounts;
+`;
+      const doc = {
+        uri: vscode.Uri.file('/app/query.sql'),
+        languageId: 'sql',
+        getText: () => sqlCode,
+      } as any;
+
+      const diags = linter.lintDocument(doc);
+      expect(diags.length).toBeGreaterThanOrEqual(2);
+
+      expect(diags.find((d) => d.code === 'sql-select-star')).toBeDefined();
+      expect(diags.find((d) => d.code === 'sql-missing-where')).toBeDefined();
+    });
+  });
+
+  describe('Lifecycle & Cancellation', () => {
+    it('should respect cancellation tokens during lint execution', () => {
+      const doc = {
+        uri: vscode.Uri.file('/app/app.js'),
+        languageId: 'javascript',
+        getText: () => 'var x = 1;',
+      } as any;
+
+      const token = { isCancellationRequested: true } as vscode.CancellationToken;
+      const diags = linter.lintDocument(doc, token);
+      expect(diags).toEqual([]);
+    });
+
+    it('should clear diagnostics when document is closed via clearForUri', () => {
+      const uri = vscode.Uri.file('/app/test.js');
+      const doc = {
+        uri,
+        languageId: 'javascript',
+        getText: () => 'var y = 2;',
+      } as any;
+
+      linter.lintDocument(doc);
+      linter.clearForUri(uri);
+      expect(linter.isEnabled()).toBe(true);
+    });
+  });
+
   describe('Toggle Behavior', () => {
     it('should toggle enabled state and clear diagnostics when disabled', () => {
       const infoSpy = vi.spyOn(vscode.window, 'showInformationMessage');
@@ -200,12 +325,12 @@ def calculate(x)
       const stateOff = linter.toggle(false);
       expect(stateOff).toBe(false);
       expect(linter.isEnabled()).toBe(false);
-      expect(infoSpy).toHaveBeenCalledWith('Fixora Real-time Linter (ESLint & Style): Disabled');
+      expect(infoSpy).toHaveBeenCalledWith('Revion Real-time Linter (ESLint & Style): Disabled');
 
       const stateOn = linter.toggle(true);
       expect(stateOn).toBe(true);
       expect(linter.isEnabled()).toBe(true);
-      expect(infoSpy).toHaveBeenCalledWith('Fixora Real-time Linter (ESLint & Style): Enabled');
+      expect(infoSpy).toHaveBeenCalledWith('Revion Real-time Linter (ESLint & Style): Enabled');
     });
   });
 });

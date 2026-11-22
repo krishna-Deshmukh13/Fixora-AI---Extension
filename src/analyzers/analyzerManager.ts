@@ -7,6 +7,7 @@ import { PHPStanAnalyzer } from './languageAdapters/phpstan';
 import { HTMLHintAnalyzer } from './languageAdapters/htmlhint';
 import { StylelintAnalyzer } from './languageAdapters/stylelint';
 import { SQLFluffAnalyzer } from './languageAdapters/sqlfluff';
+import { CheckstyleAnalyzer } from './languageAdapters/checkstyle';
 import { ReviewFinding } from '../types';
 import { Logger } from '../utils/logger';
 
@@ -34,6 +35,7 @@ export class AnalyzerManager {
     this.registerAnalyzer(new HTMLHintAnalyzer());
     this.registerAnalyzer(new StylelintAnalyzer());
     this.registerAnalyzer(new SQLFluffAnalyzer());
+    this.registerAnalyzer(new CheckstyleAnalyzer());
   }
 
   public static getInstance(): AnalyzerManager {

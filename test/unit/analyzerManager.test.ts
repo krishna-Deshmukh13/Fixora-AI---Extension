@@ -30,11 +30,12 @@ describe('AnalyzerManager & Language Adapters', () => {
       expect(manager.getAnalyzerForLanguage('cpp')?.id).toBe('clang-tidy');
     });
 
-    it('should map PHP, HTML, CSS, and SQL to their respective analyzers', () => {
+    it('should map PHP, HTML, CSS, SQL, and Java to their respective analyzers', () => {
       expect(manager.getAnalyzerForLanguage('php')?.id).toBe('phpstan');
       expect(manager.getAnalyzerForLanguage('html')?.id).toBe('htmlhint');
       expect(manager.getAnalyzerForLanguage('css')?.id).toBe('stylelint');
       expect(manager.getAnalyzerForLanguage('sql')?.id).toBe('sqlfluff');
+      expect(manager.getAnalyzerForLanguage('java')?.id).toBe('checkstyle');
     });
   });
 

@@ -39,6 +39,10 @@ export interface ErrorExplanationResult {
   explanationOfCorrection: string;
   conceptName?: string;
   learningTakeaway?: string;
+  inferredCauses?: string[];
+  confirmedCauses?: string[];
+  relatedReferences?: string[];
+  suggestedActions?: string[];
 }
 
 /**

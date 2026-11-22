@@ -2,6 +2,7 @@ import * as vscode from 'vscode';
 import { ComplexityAnalyzer, FunctionComplexity } from './complexityAnalyzer';
 import { LanguageDetector } from '../utils/languageDetector';
 import { Logger } from '../utils/logger';
+import { BRANDING } from '../constants/branding';
 
 /**
  * Live Automatic Complexity Lens for Fixora AI.
@@ -191,7 +192,7 @@ export class ComplexityLensManager implements vscode.CodeActionProvider {
     if (!targetFn || !targetFn.refactoredCode) return [];
 
     const action = new vscode.CodeAction(
-      `💡 Fixora AI: Replace with low-complexity alternative code (Offline Refactor: CC ${targetFn.complexity} ➔ 2)`,
+      `💡 ${BRANDING.PRODUCT_NAME}: Replace with low-complexity alternative code (Offline Refactor: CC ${targetFn.complexity} ➔ 2)`,
       vscode.CodeActionKind.RefactorRewrite
     );
 
@@ -233,7 +234,7 @@ export class ComplexityLensManager implements vscode.CodeActionProvider {
       }
     }
     vscode.window.showInformationMessage(
-      `Fixora Code Complexity Lens: ${this.enabled ? 'Enabled' : 'Disabled'}`
+      `${BRANDING.PRODUCT_NAME} Code Complexity Lens: ${this.enabled ? 'Enabled' : 'Disabled'}`
     );
     return this.enabled;
   }

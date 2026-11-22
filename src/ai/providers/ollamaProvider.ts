@@ -116,6 +116,46 @@ export class OllamaProvider implements AIProvider {
     );
   }
 
+  public async streamChat(
+    prompt: string,
+    onChunk: (chunk: string) => void,
+    systemInstruction?: string,
+    abortSignal?: AbortSignal
+  ): Promise<string> {
+    try {
+      const fullPrompt = systemInstruction ? `${systemInstruction}\n\n${prompt}` : prompt;
+      const response = await fetch(`${this.endpoint}/api/generate`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          model: this.modelName,
+          prompt: fullPrompt,
+          stream: false,
+        }),
+        signal: abortSignal,
+      });
+
+      if (!response.ok) {
+        throw new Error(`Ollama returned HTTP error ${response.status}: ${response.statusText}`);
+      }
+
+      const data = (await response.json()) as any;
+      const text = data.response || '';
+      onChunk(text);
+      return text;
+    } catch (err: any) {
+      if (err.name === 'AbortError' || abortSignal?.aborted) {
+        throw new Error('Fixora AI: Local Ollama request was cancelled.');
+      }
+      throw err;
+    }
+  }
+
+  public estimateTokens(text: string): number {
+    if (!text) return 0;
+    return Math.ceil(text.length / 4);
+  }
+
   private async queryOllama(prompt: string, abortSignal?: AbortSignal): Promise<string> {
     try {
       const response = await fetch(`${this.endpoint}/api/generate`, {

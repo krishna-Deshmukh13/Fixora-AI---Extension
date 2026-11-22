@@ -9,6 +9,9 @@ export class FileUtils {
    * Checks whether a file should be excluded from review based on configured excludePatterns.
    */
   public static isFileExcluded(filePath: string, customPatterns?: string[]): boolean {
+    if (!filePath || typeof filePath !== 'string') {
+      return false;
+    }
     const config = vscode.workspace.getConfiguration('fixora');
     const patterns = customPatterns || config.get<string[]>('excludePatterns', [
       '**/node_modules/**',

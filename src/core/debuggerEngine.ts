@@ -4,6 +4,7 @@ import { SidebarProvider } from '../providers/sidebarProvider';
 import { LanguageDetector } from '../utils/languageDetector';
 import { Logger } from '../utils/logger';
 import { ErrorExplanationResult } from '../types';
+import { BRANDING } from '../constants/branding';
 
 export interface StackTraceLocation {
   filePath?: string;
@@ -200,7 +201,7 @@ export class DebuggerEngine {
     const isConfigured = await this.aiManager.isConfigured();
     if (!isConfigured) {
       const action = await vscode.window.showWarningMessage(
-        'Fixora AI requires a Gemini API Key to explain errors.',
+        `${BRANDING.PRODUCT_NAME} requires an AI provider configured to explain errors.`,
         'Configure API Key'
       );
       if (action === 'Configure API Key') {
@@ -215,7 +216,7 @@ export class DebuggerEngine {
     return vscode.window.withProgress(
       {
         location: vscode.ProgressLocation.Notification,
-        title: 'Fixora AI: Explaining Error',
+        title: `${BRANDING.PRODUCT_NAME}: Explaining Error`,
         cancellable: true,
       },
       async (progress, token) => {
@@ -240,7 +241,7 @@ export class DebuggerEngine {
           this.sidebarProvider.displayErrorExplanation(errorMessage, explanation, filePath, line);
 
           vscode.window.showInformationMessage(
-            `Fixora AI: Error explained — "${explanation.whatHappened.slice(0, 60)}..."`
+            `${BRANDING.PRODUCT_NAME}: Error explained — "${explanation.whatHappened.slice(0, 60)}..."`
           );
 
           return explanation;
@@ -252,7 +253,7 @@ export class DebuggerEngine {
 
           const msg = err?.message || 'Failed to explain error.';
           this.sidebarProvider.displayError(msg);
-          vscode.window.showErrorMessage(`Fixora AI: ${msg}`);
+          vscode.window.showErrorMessage(`${BRANDING.PRODUCT_NAME}: ${msg}`);
           return null;
         }
       }

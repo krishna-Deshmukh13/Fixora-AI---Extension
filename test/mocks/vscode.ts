@@ -108,6 +108,10 @@ export class MarkdownString {
   }
 }
 
+export class Hover {
+  constructor(public contents: MarkdownString | string | any[], public range?: Range) {}
+}
+
 export enum StatusBarAlignment {
   Left = 1,
   Right = 2,
@@ -185,6 +189,7 @@ export const workspace = {
   onDidChangeConfiguration: () => ({ dispose: () => {} }),
   onDidChangeTextDocument: () => ({ dispose: () => {} }),
   onDidOpenTextDocument: () => ({ dispose: () => {} }),
+  onDidCloseTextDocument: () => ({ dispose: () => {} }),
   workspaceFolders: [] as any[],
   findFiles: async (..._args: any[]) => [] as any[],
   openTextDocument: async () => ({}),
@@ -211,6 +216,7 @@ export const languages = {
   getDiagnostics: () => [],
   onDidChangeDiagnostics: () => ({ dispose: () => {} }),
   registerCodeActionsProvider: () => ({ dispose: () => {} }),
+  registerHoverProvider: () => ({ dispose: () => {} }),
   registerDocumentFormattingEditProvider: () => ({ dispose: () => {} }),
   registerDocumentRangeFormattingEditProvider: () => ({ dispose: () => {} }),
 };

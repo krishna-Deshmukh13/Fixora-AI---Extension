@@ -10,6 +10,7 @@ import { AIProvider } from './provider';
 import { PromptManager } from '../promptManager';
 import { ResponseParser } from '../responseParser';
 import { Logger } from '../../utils/logger';
+import { BRANDING } from '../../constants/branding';
 
 export class GeminiProvider implements AIProvider {
   public readonly id = 'gemini';
@@ -52,40 +53,56 @@ export class GeminiProvider implements AIProvider {
     ];
     const uniqueModels = [...new Set(candidateModels)];
     let lastError: any;
+    const maxRetries = 1;
 
     for (const model of uniqueModels) {
-      try {
-        const response = await this.executeWithTimeout(
-          () =>
-            this.client.models.generateContent({
-              model,
-              contents: params.contents,
-              config: {
-                systemInstruction: params.systemInstruction,
-                responseMimeType: 'application/json',
-                temperature: params.temperature ?? 0.2,
-              },
-            }),
-          abortSignal
-        );
-        if (this.modelName !== model) {
-          this.logger.info(`Switched active Gemini model from ${this.modelName} to ${model}`);
-          this.modelName = model;
+      for (let attempt = 0; attempt <= maxRetries; attempt++) {
+        try {
+          const response = await this.executeWithTimeout(
+            () =>
+              this.client.models.generateContent({
+                model,
+                contents: params.contents,
+                config: {
+                  systemInstruction: params.systemInstruction,
+                  responseMimeType: 'application/json',
+                  temperature: params.temperature ?? 0.2,
+                },
+              }),
+            abortSignal
+          );
+          if (this.modelName !== model) {
+            this.logger.info(`Switched active Gemini model from ${this.modelName} to ${model}`);
+            this.modelName = model;
+          }
+          return response;
+        } catch (err: any) {
+          lastError = err;
+          const msg = String(err?.message || err);
+
+          // Retry on 429 rate limit with exponential backoff
+          if (
+            attempt < maxRetries &&
+            (msg.includes('429') || msg.includes('RESOURCE_EXHAUSTED')) &&
+            !abortSignal?.aborted
+          ) {
+            const delay = Math.pow(2, attempt) * 500;
+            this.logger.warn(`Gemini rate limit 429 encountered. Backing off ${delay}ms (attempt ${attempt + 1}/${maxRetries})...`);
+            await new Promise((resolve) => setTimeout(resolve, delay));
+            continue;
+          }
+
+          if (
+            msg.includes('404') ||
+            msg.includes('NOT_FOUND') ||
+            msg.includes('no longer available') ||
+            msg.includes('is not found')
+          ) {
+            this.logger.warn(`Model ${model} unavailable: ${msg}. Attempting next model candidate...`);
+            break;
+          }
+          throw err;
         }
-        return response;
-      } catch (err: any) {
-        lastError = err;
-        const msg = String(err?.message || err);
-        if (
-          msg.includes('404') ||
-          msg.includes('NOT_FOUND') ||
-          msg.includes('no longer available') ||
-          msg.includes('is not found')
-        ) {
-          this.logger.warn(`Model ${model} unavailable: ${msg}. Attempting next model candidate...`);
-          continue;
-        }
-        throw err;
       }
     }
     throw lastError;
@@ -290,6 +307,56 @@ export class GeminiProvider implements AIProvider {
   }
 
   /**
+   * Interactive streaming chat generator.
+   */
+  public async streamChat(
+    prompt: string,
+    onChunk: (chunk: string) => void,
+    systemInstruction?: string,
+    abortSignal?: AbortSignal
+  ): Promise<string> {
+    try {
+      if (typeof (this.client?.models as any)?.generateContentStream === 'function') {
+        const stream = await (this.client.models as any).generateContentStream({
+          model: this.modelName,
+          contents: prompt,
+          config: {
+            systemInstruction,
+            temperature: 0.3,
+          },
+        });
+
+        let fullText = '';
+        for await (const chunk of stream) {
+          if (abortSignal?.aborted) {
+            throw new Error('Request was cancelled by the user.');
+          }
+          const text = chunk.text || '';
+          fullText += text;
+          onChunk(text);
+        }
+        return fullText;
+      } else {
+        const res = await this.generateContentWithFallback({ contents: prompt, systemInstruction }, abortSignal);
+        const text = res.text || '';
+        onChunk(text);
+        return text;
+      }
+    } catch (err: any) {
+      this.handleApiError(err);
+      throw err;
+    }
+  }
+
+  /**
+   * Approximate token count calculation (~4 characters per token).
+   */
+  public estimateTokens(text: string): number {
+    if (!text) return 0;
+    return Math.ceil(text.length / 4);
+  }
+
+  /**
    * Translates common Gemini/HTTP errors into human-readable developer explanations.
    */
   private handleApiError(err: any): void {
@@ -298,19 +365,19 @@ export class GeminiProvider implements AIProvider {
 
     if (message.includes('429') || message.includes('RESOURCE_EXHAUSTED') || message.includes('quota')) {
       throw new Error(
-        'Fixora AI: Google Gemini rate limit or quota exceeded. Please wait a minute before sending another request.'
+        `Fixora AI: Google Gemini rate limit or quota exceeded (${BRANDING.PRODUCT_NAME}). Please wait a minute before sending another request.`
       );
     }
 
     if (message.includes('API_KEY_INVALID') || message.includes('403') || message.includes('401')) {
       throw new Error(
-        'Fixora AI: Invalid Google Gemini API Key. Use "Fixora AI: Configure Gemini API Key" to update your key.'
+        `Fixora AI: Invalid Google Gemini API Key (${BRANDING.PRODUCT_NAME}). Use "${BRANDING.PRODUCT_NAME}: Configure Gemini API Key" to update your key.`
       );
     }
 
     if (message.includes('ECONNREFUSED') || message.includes('ENOTFOUND') || message.includes('ETIMEDOUT')) {
       throw new Error(
-        'Fixora AI: Network connection error. Please verify your internet connection.'
+        `Fixora AI: Network connection error (${BRANDING.PRODUCT_NAME}). Please verify your internet connection.`
       );
     }
   }
