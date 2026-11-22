@@ -22,7 +22,13 @@ export class PrivacyManager {
 
   public static getInstance(): PrivacyManager {
     if (!PrivacyManager.instance) {
-      throw new Error('PrivacyManager must be initialized before use.');
+      const fallbackContext = {
+        globalState: {
+          get: (_k: string, d: any) => d,
+          update: async () => {},
+        },
+      } as any;
+      PrivacyManager.instance = new PrivacyManager(fallbackContext);
     }
     return PrivacyManager.instance;
   }
@@ -101,6 +107,16 @@ export class PrivacyManager {
     );
 
     return sanitized;
+  }
+
+  /**
+   * Redacts sensitive credentials from text or chat prompts.
+   */
+  public redactSecrets(text: string): string {
+    return this.sanitizeCodeForTransmission(text).replace(
+      /\[REDACTED_GOOGLE_API_KEY\]/g,
+      '[REDACTED_GEMINI_KEY]'
+    );
   }
 
   /**

@@ -95,4 +95,51 @@ describe('HistoryManager', () => {
     await manager.clearHistory();
     expect(manager.getHistory()).toEqual([]);
   });
+
+  it('should search history by filename, content, and filter by severity', async () => {
+    const manager = HistoryManager.initialize(mockContext);
+    const mockResult: ReviewResult = {
+      summary: 'Auth review',
+      findings: [
+        {
+          id: '1',
+          title: 'Hardcoded JWT secret',
+          severity: 'critical',
+          category: 'security',
+          filePath: '/app/src/auth.ts',
+          line: 10,
+          explanation: 'JWT secret is hardcoded in source',
+          whyItMatters: 'Leads to privilege escalation',
+          suggestedSolution: 'Use env variable',
+          confidence: 0.95,
+          source: 'ai',
+        },
+      ],
+      durationMs: 50,
+      filesAnalyzed: ['/app/src/auth.ts'],
+      providerName: 'Test',
+      modelName: 'Test',
+      timestamp: new Date().toISOString(),
+      totalIssues: 1,
+      criticalCount: 1,
+      warningCount: 0,
+      infoCount: 0,
+    };
+    await manager.addRecord(mockResult);
+
+    // Search matching title
+    expect(manager.search('JWT').length).toBe(1);
+    // Search matching file
+    expect(manager.search('auth.ts').length).toBe(1);
+    // Search matching severity
+    expect(manager.search('', 'critical').length).toBe(1);
+    expect(manager.search('', 'warning').length).toBe(0);
+    // Non-matching
+    expect(manager.search('nonexistent').length).toBe(0);
+
+    // JSON export
+    const json = manager.exportToJson();
+    expect(json).toContain('auth.ts');
+    expect(json).toContain('Hardcoded JWT secret');
+  });
 });

@@ -200,4 +200,40 @@ Return a JSON object with this EXACT structure:
   ]
 }`;
   }
+
+  /**
+   * Build prompt for unit test generation.
+   */
+  public static buildTestGenerationPrompt(
+    code: string,
+    filePath: string,
+    languageId: string,
+    testFramework: string
+  ): string {
+    return `Generate high-coverage unit tests for the following ${languageId} code from "${filePath}".
+Target Testing Framework: ${testFramework}.
+
+CODE TO TEST:
+\`\`\`${languageId}
+${code}
+\`\`\`
+
+REQUIREMENTS:
+1. Cover happy paths, edge cases, error conditions, and null/undefined handling.
+2. Follow ${testFramework} best practices and modern assertion syntax.
+3. Mock external I/O, network requests, or database calls where appropriate.
+4. Provide clean, self-contained test code that is ready to run.
+
+Return a JSON object with this EXACT structure:
+{
+  "framework": "${testFramework}",
+  "testCode": "Full runnable test file code as a single string",
+  "testFilePath": "Suggested relative file path for this test file (e.g. test/unit/... or tests/...)",
+  "dependenciesNeeded": ["list of npm packages or test runners needed"],
+  "testCasesSummary": [
+    "Test case 1 description",
+    "Test case 2 description"
+  ]
+}`;
+  }
 }

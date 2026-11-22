@@ -4,7 +4,7 @@ import { registerAllCommands } from '../../src/commands';
 import { SidebarProvider } from '../../src/providers/sidebarProvider';
 
 describe('registerAllCommands', () => {
-  it('should register all 29 extension commands into context.subscriptions', () => {
+  it('should register all 33 extension commands into context.subscriptions', () => {
     const subscriptions: vscode.Disposable[] = [];
     const mockContext: any = {
       subscriptions,
@@ -31,7 +31,7 @@ describe('registerAllCommands', () => {
 
     registerAllCommands(mockContext, mockSidebar);
 
-    expect(registeredCommands.length).toBe(29);
+    expect(registeredCommands.length).toBe(33);
     expect(registeredCommands).toContain('fixora.openDashboard');
     expect(registeredCommands).toContain('fixora.reviewSelection');
     expect(registeredCommands).toContain('fixora.reviewFile');
@@ -61,8 +61,12 @@ describe('registerAllCommands', () => {
     expect(registeredCommands).toContain('fixora.toggleComplexityLens');
     expect(registeredCommands).toContain('fixora.toggleFormatter');
     expect(registeredCommands).toContain('fixora.toggleLinter');
+    expect(registeredCommands).toContain('fixora.generateTests');
+    expect(registeredCommands).toContain('fixora.reviewPullRequest');
+    expect(registeredCommands).toContain('fixora.auditDependencies');
+    expect(registeredCommands).toContain('fixora.workspaceHealth');
 
-    expect(subscriptions.length).toBeGreaterThanOrEqual(29);
+    expect(subscriptions.length).toBeGreaterThanOrEqual(33);
     vi.restoreAllMocks();
   });
 });

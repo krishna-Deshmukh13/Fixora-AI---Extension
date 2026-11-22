@@ -235,4 +235,35 @@ export class AIManager {
       cleanup();
     }
   }
+
+  /**
+   * Stream interactive chat response from active AI provider.
+   */
+  public async streamChat(
+    prompt: string,
+    onChunk: (chunk: string) => void,
+    systemInstruction?: string,
+    cancellationToken?: vscode.CancellationToken
+  ): Promise<string> {
+    const provider = await this.getProvider();
+    const { signal, cleanup } = this.createTimeoutSignal(cancellationToken);
+
+    try {
+      if (typeof provider.streamChat === 'function') {
+        return await provider.streamChat(prompt, onChunk, systemInstruction, signal);
+      } else {
+        const res = await provider.reviewCode({
+          code: prompt,
+          filePath: 'chat.txt',
+          languageId: 'plaintext',
+          abortSignal: signal,
+        });
+        const text = res.summary || 'No response generated.';
+        onChunk(text);
+        return text;
+      }
+    } finally {
+      cleanup();
+    }
+  }
 }

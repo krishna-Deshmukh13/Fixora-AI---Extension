@@ -241,3 +241,14 @@ export const TextEditorRevealType = {
   InCenterIfOutsideViewport: 2,
   AtTop: 3,
 };
+
+export const authentication = {
+  getSession: async (_providerId: string, _scopes: string[], _options?: any) => {
+    return {
+      id: 'mock-session',
+      accessToken: 'ghp_mock_token_123',
+      account: { id: 'mock-user', label: 'mock-user' },
+      scopes: _scopes,
+    };
+  },
+};

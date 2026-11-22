@@ -21,6 +21,10 @@ import { ComplexityLensManager } from '../metrics/complexityLensManager';
 import { PrettierFormatter } from '../formatter/prettierFormatter';
 import { RealtimeLinter } from '../linter/realtimeLinter';
 import { BRANDING } from '../constants/branding';
+import { TestGeneratorEngine } from '../core/testGeneratorEngine';
+import { GitHubPrReviewer } from '../git/githubPrReviewer';
+import { DependencyAuditor } from '../security/dependencyAuditor';
+import { WorkspaceHealthService } from '../core/workspaceHealth';
 
 /**
  * Register all Revion commands and bind them to the extension lifecycle.
@@ -310,5 +314,156 @@ export function registerAllCommands(
     })
   );
 
-  logger.info(`All 29 ${BRANDING.PRODUCT_NAME} commands successfully registered and bound to lifecycle.`);
+  // 30. Generate Unit Tests
+  register(
+    vscode.commands.registerCommand('fixora.generateTests', async () => {
+      const editor = vscode.window.activeTextEditor;
+      if (!editor) {
+        vscode.window.showWarningMessage(`${BRANDING.PRODUCT_NAME}: Open a file to generate unit tests.`);
+        return;
+      }
+
+      const doc = editor.document;
+      const selection = editor.selection;
+      const code = !selection.isEmpty ? doc.getText(selection) : doc.getText();
+      const filePath = doc.fileName;
+
+      if (!code.trim()) {
+        vscode.window.showWarningMessage(`${BRANDING.PRODUCT_NAME}: Cannot generate tests for empty code.`);
+        return;
+      }
+
+      await vscode.window.withProgress(
+        {
+          location: vscode.ProgressLocation.Notification,
+          title: `${BRANDING.PRODUCT_NAME}: Generating unit tests...`,
+          cancellable: true,
+        },
+        async (_progress, token) => {
+          try {
+            sidebarProvider.broadcastState(true, 'Synthesizing comprehensive unit tests...');
+            const engine = TestGeneratorEngine.getInstance();
+            const result = await engine.generateTests(code, filePath, doc.languageId, token);
+
+            await engine.previewInEditor(result, doc.languageId);
+            sidebarProvider.broadcastState(false);
+          } catch (err: any) {
+            sidebarProvider.broadcastState(false);
+            if (!token.isCancellationRequested) {
+              vscode.window.showErrorMessage(`${BRANDING.PRODUCT_NAME}: ${err?.message || 'Failed to generate tests.'}`);
+            }
+          }
+        }
+      );
+    })
+  );
+
+  // 31. Review GitHub Pull Request
+  register(
+    vscode.commands.registerCommand('fixora.reviewPullRequest', async () => {
+      const reviewer = GitHubPrReviewer.getInstance();
+      const repoInfo = await reviewer.detectRepository();
+      let owner = repoInfo?.owner || '';
+      let repo = repoInfo?.repo || '';
+
+      if (!owner || !repo) {
+        const repoInput = await vscode.window.showInputBox({
+          prompt: 'Enter GitHub owner/repo (e.g. facebook/react)',
+          placeHolder: 'owner/repository',
+        });
+        if (!repoInput) return;
+        const parsed = reviewer.parseGitHubUrl(`https://github.com/${repoInput}`);
+        if (!parsed) {
+          vscode.window.showErrorMessage(`${BRANDING.PRODUCT_NAME}: Invalid GitHub repository format.`);
+          return;
+        }
+        owner = parsed.owner;
+        repo = parsed.repo;
+      }
+
+      const prInput = await vscode.window.showInputBox({
+        prompt: `Enter Pull Request number for ${owner}/${repo}`,
+        placeHolder: '1',
+      });
+      if (!prInput || !/^\d+$/.test(prInput)) {
+        return;
+      }
+      const prNumber = parseInt(prInput, 10);
+      const token = (await reviewer.getAuthToken()) || undefined;
+
+      await vscode.window.withProgress(
+        {
+          location: vscode.ProgressLocation.Notification,
+          title: `${BRANDING.PRODUCT_NAME}: Reviewing PR #${prNumber} on ${owner}/${repo}...`,
+          cancellable: true,
+        },
+        async (_progress, cancelToken) => {
+          try {
+            sidebarProvider.broadcastState(true, `Reviewing Pull Request #${prNumber}...`);
+            const reviewResult = await reviewer.reviewPullRequest(owner, repo, prNumber, token, cancelToken);
+
+            sidebarProvider.displayReviewResult(reviewResult);
+            vscode.window.showInformationMessage(
+              `${BRANDING.PRODUCT_NAME}: PR #${prNumber} review completed. Found ${reviewResult.totalIssues} issue(s).`
+            );
+          } catch (err: any) {
+            sidebarProvider.broadcastState(false);
+            if (!cancelToken.isCancellationRequested) {
+              vscode.window.showErrorMessage(`${BRANDING.PRODUCT_NAME}: ${err?.message || 'Failed to review PR.'}`);
+            }
+          }
+        }
+      );
+    })
+  );
+
+  // 32. Audit Dependencies for Vulnerabilities
+  register(
+    vscode.commands.registerCommand('fixora.auditDependencies', async () => {
+      await vscode.window.withProgress(
+        {
+          location: vscode.ProgressLocation.Notification,
+          title: `${BRANDING.PRODUCT_NAME}: Auditing dependencies for vulnerabilities...`,
+          cancellable: false,
+        },
+        async () => {
+          const auditor = DependencyAuditor.getInstance();
+          const result = await auditor.auditWorkspace();
+
+          if (result.vulnerabilities.length === 0) {
+            vscode.window.showInformationMessage(
+              `${BRANDING.PRODUCT_NAME}: Dependency audit passed! ${result.totalDependencies} dependencies scanned across ${result.manifestsScanned.length} manifest(s). No known advisories detected.`
+            );
+          } else {
+            vscode.window.showWarningMessage(
+              `${BRANDING.PRODUCT_NAME}: Dependency audit found ${result.vulnerabilities.length} vulnerable package(s) across ${result.manifestsScanned.length} manifest(s).`
+            );
+          }
+        }
+      );
+    })
+  );
+
+  // 33. Workspace Health & Quality Audit
+  register(
+    vscode.commands.registerCommand('fixora.workspaceHealth', async () => {
+      await vscode.window.withProgress(
+        {
+          location: vscode.ProgressLocation.Notification,
+          title: `${BRANDING.PRODUCT_NAME}: Computing Workspace Health Score...`,
+          cancellable: true,
+        },
+        async (_progress, token) => {
+          const service = WorkspaceHealthService.getInstance();
+          const report = await service.computeHealthReport(token);
+
+          vscode.window.showInformationMessage(
+            `${BRANDING.PRODUCT_NAME} Health: ${report.score}/100 (${report.rating}) — ${report.diagnostics.errors} errors, ${report.diagnostics.warnings} warnings, avg CC: ${report.complexity.averageCC}.`
+          );
+        }
+      );
+    })
+  );
+
+  logger.info(`All 33 ${BRANDING.PRODUCT_NAME} commands successfully registered and bound to lifecycle.`);
 }

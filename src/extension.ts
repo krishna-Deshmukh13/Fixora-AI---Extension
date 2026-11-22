@@ -19,6 +19,10 @@ import { PrettierFormatter } from './formatter/prettierFormatter';
 import { ComplexityLensManager } from './metrics/complexityLensManager';
 import { RealtimeLinter } from './linter/realtimeLinter';
 import { BRANDING } from './constants/branding';
+import { ChatManager } from './ai/chatManager';
+import { GitHubPrReviewer } from './git/githubPrReviewer';
+import { TestGeneratorEngine } from './core/testGeneratorEngine';
+import { WorkspaceHealthService } from './core/workspaceHealth';
 
 /**
  * Revion Extension Activation Entry Point.
@@ -41,6 +45,10 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
   PerformanceEngine.initialize(aiManager, sidebarProvider);
   FixEngine.initialize(aiManager, sidebarProvider);
   WorkspaceReviewEngine.initialize(reviewEngine, sidebarProvider, historyManager);
+  ChatManager.initialize(aiManager);
+  GitHubPrReviewer.initialize(aiManager);
+  TestGeneratorEngine.initialize(aiManager);
+  WorkspaceHealthService.getInstance();
 
   // Initialize Native Error Lens (Inline Diagnostics & Line Highlights)
   const errorLens = ErrorLensManager.initialize();

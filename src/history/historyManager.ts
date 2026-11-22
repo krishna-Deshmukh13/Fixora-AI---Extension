@@ -73,6 +73,51 @@ export class HistoryManager {
   }
 
   /**
+   * Search history records by file name, path, or finding content with optional severity filter.
+   */
+  public search(query: string, severity?: 'critical' | 'warning' | 'info'): HistoryRecord[] {
+    const history = this.getHistory();
+    const q = (query || '').toLowerCase().trim();
+
+    return history.filter((rec) => {
+      if (severity && rec.result.findings.every((f) => f.severity !== severity)) {
+        return false;
+      }
+      if (!q) {
+        return true;
+      }
+      return (
+        rec.fileName.toLowerCase().includes(q) ||
+        rec.filePath.toLowerCase().includes(q) ||
+        rec.result.findings.some(
+          (f) =>
+            f.title.toLowerCase().includes(q) ||
+            f.explanation.toLowerCase().includes(q) ||
+            f.category.toLowerCase().includes(q)
+        )
+      );
+    });
+  }
+
+  /**
+   * Retrieve a specific history record by ID.
+   */
+  public getRecordById(id: string): HistoryRecord | undefined {
+    return this.getHistory().find((rec) => rec.id === id);
+  }
+
+  /**
+   * Export history records or a single record to formatted JSON.
+   */
+  public exportToJson(recordId?: string): string {
+    if (recordId) {
+      const rec = this.getRecordById(recordId);
+      return JSON.stringify(rec || {}, null, 2);
+    }
+    return JSON.stringify(this.getHistory(), null, 2);
+  }
+
+  /**
    * Clear all stored history records.
    */
   public async clearHistory(): Promise<void> {
