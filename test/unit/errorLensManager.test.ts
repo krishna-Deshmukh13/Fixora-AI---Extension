@@ -22,11 +22,11 @@ describe('ErrorLensManager (Native ErrorLens Clone)', () => {
 
     const newState = manager.toggle();
     expect(newState).toBe(false);
-    expect(infoSpy).toHaveBeenCalledWith('Fixora Error Lens: Disabled');
+    expect(infoSpy).toHaveBeenCalledWith('Revion Lens: Disabled');
 
     const toggledBack = manager.toggle();
     expect(toggledBack).toBe(true);
-    expect(infoSpy).toHaveBeenCalledWith('Fixora Error Lens: Enabled');
+    expect(infoSpy).toHaveBeenCalledWith('Revion Lens: Enabled');
   });
 
   it('should update decorations with inline icons and line groupings', () => {

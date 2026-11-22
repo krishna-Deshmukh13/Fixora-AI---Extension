@@ -106,13 +106,13 @@ describe('DiagnosticManager & CodeActionProvider', () => {
 
     expect(actions.length).toBeGreaterThanOrEqual(2);
 
-    const fixAction = actions.find((a) => a.title.includes('Fix with Fixora AI'));
+    const fixAction = actions.find((a) => a.title.includes('Fix with'));
     expect(fixAction).toBeDefined();
     expect(fixAction?.isPreferred).toBe(true);
     expect(fixAction?.edit?.entries.length).toBe(1);
     expect(fixAction?.edit?.entries[0].newText).toBe('if (x === 0) {');
 
-    const explainAction = actions.find((a) => a.title.includes('Explain Issue with Fixora AI'));
+    const explainAction = actions.find((a) => a.title.includes('Explain Issue with'));
     expect(explainAction).toBeDefined();
   });
 

@@ -7,6 +7,7 @@ import { FileUtils } from '../utils/fileUtils';
 import { SecretDetector } from '../security/secretDetector';
 import { ReviewFinding, ReviewResult } from '../types';
 import { Logger } from '../utils/logger';
+import { BRANDING } from '../constants/branding';
 
 /**
  * Dedicated security engine coordinating secret detection, deterministic OWASP pattern matching,
@@ -17,7 +18,7 @@ export class SecurityEngine {
   private logger = Logger.getInstance();
 
   public static readonly SECURITY_DISCLAIMER =
-    'Notice: Automated Fixora AI security scans identify common high-risk vulnerabilities and credentials. It does not replace a manual penetration test or formal compliance audit.';
+    `Notice: Automated ${BRANDING.PRODUCT_NAME} security scans identify common high-risk vulnerabilities and credentials. It does not replace a manual penetration test or formal compliance audit.`;
 
   private constructor(
     private readonly aiManager: AIManager,
@@ -45,13 +46,13 @@ export class SecurityEngine {
     const filePath = document.fileName;
 
     if (FileUtils.isFileExcluded(filePath)) {
-      vscode.window.showInformationMessage('Fixora AI: File is excluded from security scans by configuration.');
+      vscode.window.showInformationMessage(`${BRANDING.PRODUCT_NAME}: File is excluded from security scans by configuration.`);
       return null;
     }
 
     const code = document.getText();
     if (!code || code.trim().length === 0) {
-      vscode.window.showWarningMessage('Fixora AI: Document is empty.');
+      vscode.window.showWarningMessage(`${BRANDING.PRODUCT_NAME}: Document is empty.`);
       return null;
     }
 
@@ -61,7 +62,7 @@ export class SecurityEngine {
     const isConfigured = await this.aiManager.isConfigured();
     if (!isConfigured) {
       const action = await vscode.window.showWarningMessage(
-        'Fixora AI requires a Gemini API Key for deep security vulnerability audits.',
+        `${BRANDING.PRODUCT_NAME} requires a Gemini API Key for deep security vulnerability audits.`,
         'Configure API Key'
       );
       if (action === 'Configure API Key') {
@@ -76,7 +77,7 @@ export class SecurityEngine {
     return vscode.window.withProgress(
       {
         location: vscode.ProgressLocation.Notification,
-        title: `Fixora AI: Security Audit (${document.fileName.split(/[\\/]/).pop()})`,
+        title: `${BRANDING.PRODUCT_NAME}: Security Audit (${document.fileName.split(/[\\/]/).pop()})`,
         cancellable: true,
       },
       async (progress, token) => {
@@ -121,7 +122,7 @@ export class SecurityEngine {
             if (localFindings.length > 0) {
               mergedFindings = localFindings;
               summaryMessage = `Local security engine detected ${localFindings.length} issue(s). Note: AI scan unavailable: ${aiErr?.message || 'Check network'}.`;
-              providerName = 'Fixora Security Scanner';
+              providerName = `${BRANDING.PRODUCT_NAME} Security Scanner`;
               modelName = 'Deterministic Scanner';
             } else {
               throw aiErr;
@@ -155,7 +156,7 @@ export class SecurityEngine {
               ? 'No security vulnerabilities detected!'
               : `Found ${result.totalIssues} security issue${result.totalIssues > 1 ? 's' : ''} (${criticalCount} critical, ${warningCount} warnings).`;
 
-          vscode.window.showInformationMessage(`Fixora AI: Security scan finished. ${summaryText}`);
+          vscode.window.showInformationMessage(`${BRANDING.PRODUCT_NAME}: Security scan finished. ${summaryText}`);
           return result;
         } catch (err: any) {
           if (token.isCancellationRequested) {
@@ -165,7 +166,7 @@ export class SecurityEngine {
 
           const msg = err?.message || 'Security scan failed.';
           this.sidebarProvider.displayError(msg);
-          vscode.window.showErrorMessage(`Fixora AI: ${msg}`);
+          vscode.window.showErrorMessage(`${BRANDING.PRODUCT_NAME}: ${msg}`);
           return null;
         }
       }

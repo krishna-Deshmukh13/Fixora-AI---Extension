@@ -50,7 +50,7 @@ describe('GitHookManager', () => {
     const writtenArgs = vi.mocked(fs.writeFileSync).mock.calls[0];
     expect(writtenArgs[0].toString()).toContain('pre-commit');
     expect(writtenArgs[1].toString()).toContain('#!/bin/sh');
-    expect(writtenArgs[1].toString()).toContain('Fixora AI Pre-Commit Guard');
+    expect(writtenArgs[1].toString()).toContain('Revion Pre-Commit Guard');
     expect(writtenArgs[2]).toEqual({ mode: 0o755 });
     expect(vscode.window.showInformationMessage).toHaveBeenCalledWith(
       expect.stringContaining('installed successfully')

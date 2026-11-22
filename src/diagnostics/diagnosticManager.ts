@@ -1,9 +1,10 @@
 import * as vscode from 'vscode';
 import { ReviewFinding, ReviewSeverity } from '../types';
 import { Logger } from '../utils/logger';
+import { BRANDING } from '../constants/branding';
 
 /**
- * Manages the VS Code Problems panel diagnostics for Fixora AI.
+ * Manages the VS Code Problems panel diagnostics for Revion.
  */
 export class DiagnosticManager {
   private static instance: DiagnosticManager;
@@ -12,7 +13,7 @@ export class DiagnosticManager {
   private logger = Logger.getInstance();
 
   private constructor() {
-    this.collection = vscode.languages.createDiagnosticCollection('Fixora AI');
+    this.collection = vscode.languages.createDiagnosticCollection(BRANDING.PRODUCT_NAME);
   }
 
   public static getInstance(): DiagnosticManager {
@@ -46,8 +47,8 @@ export class DiagnosticManager {
         severity
       );
 
-      diagnostic.source = 'Fixora AI';
-      diagnostic.code = `FIXORA-${finding.category.toUpperCase()}`;
+      diagnostic.source = BRANDING.PRODUCT_NAME;
+      diagnostic.code = `REVION-${finding.category.toUpperCase()}`;
 
       // Associate finding for Quick Fix lookup
       const key = this.getDiagnosticKey(uri, diagnostic);
@@ -74,7 +75,7 @@ export class DiagnosticManager {
   public clearDiagnostics(): void {
     this.collection.clear();
     this.findingMap.clear();
-    this.logger.info('Cleared all Fixora AI diagnostics.');
+    this.logger.info(`Cleared all ${BRANDING.PRODUCT_NAME} diagnostics.`);
   }
 
   /**

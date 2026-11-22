@@ -1,8 +1,9 @@
 import * as vscode from 'vscode';
 import { DiagnosticManager } from './diagnosticManager';
+import { BRANDING } from '../constants/branding';
 
 /**
- * Provides Quick Fix actions (Lightbulb menu) in the VS Code editor for Fixora findings.
+ * Provides Quick Fix actions (Lightbulb menu) in the VS Code editor for Revion findings.
  */
 export class FixoraCodeActionProvider implements vscode.CodeActionProvider {
   public static readonly providedCodeActionKinds = [
@@ -18,18 +19,18 @@ export class FixoraCodeActionProvider implements vscode.CodeActionProvider {
     const actions: vscode.CodeAction[] = [];
     const diagnosticManager = DiagnosticManager.getInstance();
 
-    // Filter for diagnostics that belong to Fixora AI
-    const fixoraDiagnostics = context.diagnostics.filter(
-      (d) => d.source === 'Fixora AI'
+    // Filter for diagnostics that belong to Revion or legacy Fixora AI
+    const revionDiagnostics = context.diagnostics.filter(
+      (d) => d.source === BRANDING.PRODUCT_NAME || d.source === 'Fixora AI'
     );
 
-    for (const diagnostic of fixoraDiagnostics) {
+    for (const diagnostic of revionDiagnostics) {
       const finding = diagnosticManager.getFinding(document.uri, diagnostic);
 
       // 1. Quick Fix: Apply Suggested Fix (if replacement code is available)
       if (finding && finding.suggestedFix) {
         const fixAction = new vscode.CodeAction(
-          `Fix with Fixora AI: ${finding.title}`,
+          `Fix with ${BRANDING.PRODUCT_NAME}: ${finding.title}`,
           vscode.CodeActionKind.QuickFix
         );
 
@@ -46,27 +47,27 @@ export class FixoraCodeActionProvider implements vscode.CodeActionProvider {
         actions.push(fixAction);
       }
 
-      // 2. Quick Action: Explain Issue with Fixora AI
+      // 2. Quick Action: Explain Issue with Revion
       const explainAction = new vscode.CodeAction(
-        `Explain Issue with Fixora AI: ${diagnostic.message.split(':')[0]}`,
+        `Explain Issue with ${BRANDING.PRODUCT_NAME}: ${diagnostic.message.split(':')[0]}`,
         vscode.CodeActionKind.QuickFix
       );
       explainAction.command = {
-        title: 'Explain with Fixora AI',
+        title: `Explain with ${BRANDING.PRODUCT_NAME}`,
         command: 'fixora.explainError',
       };
       explainAction.diagnostics = [diagnostic];
       actions.push(explainAction);
     }
 
-    // 3. Quick Action: Open Dashboard
-    if (fixoraDiagnostics.length > 0) {
+    // 3. Quick Action: Open Dashboard / Assistant
+    if (revionDiagnostics.length > 0) {
       const dashboardAction = new vscode.CodeAction(
-        'Open Fixora AI Dashboard',
+        `Open ${BRANDING.PRODUCT_NAME} Assistant`,
         vscode.CodeActionKind.QuickFix
       );
       dashboardAction.command = {
-        title: 'Open Dashboard',
+        title: 'Open Assistant',
         command: 'fixora.openDashboard',
       };
       actions.push(dashboardAction);

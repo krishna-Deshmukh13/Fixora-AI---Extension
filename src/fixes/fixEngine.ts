@@ -4,6 +4,7 @@ import { SidebarProvider } from '../providers/sidebarProvider';
 import { FixoraDiffContentProvider } from './diffProvider';
 import { ReviewFinding } from '../types';
 import { Logger } from '../utils/logger';
+import { BRANDING } from '../constants/branding';
 
 /**
  * Manages safe code fix generation, diff previewing, and WorkspaceEdit application.
@@ -41,7 +42,7 @@ export class FixEngine {
     try {
       document = await vscode.workspace.openTextDocument(documentUri);
     } catch {
-      vscode.window.showErrorMessage(`Fixora AI: Could not open file ${finding.filePath}`);
+      vscode.window.showErrorMessage(`${BRANDING.PRODUCT_NAME}: Could not open file ${finding.filePath}`);
       return;
     }
 
@@ -55,7 +56,7 @@ export class FixEngine {
     }
 
     if (!fixCode) {
-      vscode.window.showWarningMessage('Fixora AI: No code fix available for this finding.');
+      vscode.window.showWarningMessage(`${BRANDING.PRODUCT_NAME}: No code fix available for this finding.`);
       return;
     }
 
@@ -74,13 +75,13 @@ export class FixEngine {
       'vscode.diff',
       documentUri,
       diffUri,
-      `Fixora AI Fix Preview: ${finding.title}`,
+      `${BRANDING.PRODUCT_NAME} Fix Preview: ${finding.title}`,
       { preview: true }
     );
 
     // Prompt user to accept or reject
     const choice = await vscode.window.showInformationMessage(
-      `Fixora AI: Accept proposed fix for "${finding.title}"?`,
+      `${BRANDING.PRODUCT_NAME}: Accept proposed fix for "${finding.title}"?`,
       'Apply Fix',
       'Discard'
     );
@@ -95,7 +96,7 @@ export class FixEngine {
    */
   public async applyFix(finding: ReviewFinding): Promise<boolean> {
     if (!finding.suggestedFix) {
-      vscode.window.showWarningMessage('Fixora AI: No replacement fix found.');
+      vscode.window.showWarningMessage(`${BRANDING.PRODUCT_NAME}: No replacement fix found.`);
       return false;
     }
 
@@ -105,13 +106,13 @@ export class FixEngine {
     try {
       document = await vscode.workspace.openTextDocument(documentUri);
     } catch {
-      vscode.window.showErrorMessage(`Fixora AI: Could not open file ${finding.filePath}`);
+      vscode.window.showErrorMessage(`${BRANDING.PRODUCT_NAME}: Could not open file ${finding.filePath}`);
       return false;
     }
 
     const targetLine = Math.max(0, finding.line - 1);
     if (targetLine >= document.lineCount) {
-      vscode.window.showErrorMessage('Fixora AI: File content has changed. Please rerun review before applying fix.');
+      vscode.window.showErrorMessage(`${BRANDING.PRODUCT_NAME}: File content has changed. Please rerun review before applying fix.`);
       return false;
     }
 
@@ -129,10 +130,10 @@ export class FixEngine {
     const success = await vscode.workspace.applyEdit(edit);
     if (success) {
       this.logger.info(`Successfully applied fix for finding: ${finding.id} in ${finding.filePath}`);
-      vscode.window.showInformationMessage(`Fixora AI: Fix applied for "${finding.title}".`);
+      vscode.window.showInformationMessage(`${BRANDING.PRODUCT_NAME}: Fix applied for "${finding.title}".`);
       return true;
     } else {
-      vscode.window.showErrorMessage('Fixora AI: Failed to apply code edit.');
+      vscode.window.showErrorMessage(`${BRANDING.PRODUCT_NAME}: Failed to apply code edit.`);
       return false;
     }
   }

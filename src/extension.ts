@@ -18,13 +18,14 @@ import { ErrorLensManager } from './diagnostics/errorLensManager';
 import { PrettierFormatter } from './formatter/prettierFormatter';
 import { ComplexityLensManager } from './metrics/complexityLensManager';
 import { RealtimeLinter } from './linter/realtimeLinter';
+import { BRANDING } from './constants/branding';
 
 /**
- * Fixora AI Extension Activation Entry Point.
+ * Revion Extension Activation Entry Point.
  */
 export async function activate(context: vscode.ExtensionContext): Promise<void> {
   const logger = Logger.getInstance();
-  logger.info('Fixora AI extension activating (Stages 11-13 Hardening)...');
+  logger.info(`${BRANDING.PRODUCT_NAME} extension activating...`);
 
   // Initialize Privacy & Security Guard
   const privacyManager = PrivacyManager.initialize(context);
@@ -126,13 +127,13 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
   // Register all 18 commands
   registerAllCommands(context, sidebarProvider);
 
-  logger.info('Fixora AI extension activated successfully. All core engines and security hardening active.');
+  logger.info(`${BRANDING.PRODUCT_NAME} extension activated successfully. All core engines and security hardening active.`);
 }
 
 /**
- * Fixora AI Extension Deactivation.
+ * Revion Extension Deactivation.
  */
 export function deactivate(): void {
   const logger = Logger.getInstance();
-  logger.info('Fixora AI extension deactivated.');
+  logger.info(`${BRANDING.PRODUCT_NAME} extension deactivated.`);
 }

@@ -52,11 +52,11 @@ describe('FixoraCodeActionProvider', () => {
     );
 
     expect(actions.length).toBeGreaterThanOrEqual(2);
-    const explainAction = actions.find((a) => a.title.includes('Explain Issue with Fixora AI'));
+    const explainAction = actions.find((a) => a.title.includes('Explain Issue with'));
     expect(explainAction).toBeDefined();
     expect(explainAction?.command?.command).toBe('fixora.explainError');
 
-    const dashboardAction = actions.find((a) => a.title.includes('Open Fixora AI Dashboard'));
+    const dashboardAction = actions.find((a) => a.title.includes('Assistant') || a.title.includes('Dashboard'));
     expect(dashboardAction).toBeDefined();
     expect(dashboardAction?.command?.command).toBe('fixora.openDashboard');
   });
@@ -102,7 +102,7 @@ describe('FixoraCodeActionProvider', () => {
       {} as any
     );
 
-    const fixAction = actions.find((a) => a.title.includes('Fix with Fixora AI: Use triple equals'));
+    const fixAction = actions.find((a) => a.title.includes('Use triple equals'));
     expect(fixAction).toBeDefined();
     expect(fixAction?.isPreferred).toBe(true);
     expect(fixAction?.edit).toBeDefined();

@@ -1,7 +1,7 @@
 {
   "name": "fixora-ai",
-  "displayName": "Fixora AI",
-  "description": "AI-powered Code Reviewer, Bug Detector and Debugging Assistant. Find Bugs. Understand Errors. Fix Code. Build Better.",
+  "displayName": "Revion \u2014 Intelligent Code Review & Debugging",
+  "description": "Intelligent Code Reviewer, Bug Detector and Debugging Assistant for VS Code. Precision static analysis, native Error Lens, complexity metrics, Prettier formatter, and AI-powered reviews (Google Gemini / local Ollama).",
   "version": "0.1.0",
   "publisher": "FixoraFoundation",
   "author": {
@@ -28,6 +28,7 @@
     "Testing"
   ],
   "keywords": [
+    "revion",
     "ai",
     "code-review",
     "bug-detector",
@@ -43,168 +44,167 @@
   "main": "./dist/extension.js",
   "icon": "media/icon.png",
   "activationEvents": [
-    "onStartupFinished",
-    "*"
+    "onStartupFinished"
   ],
   "capabilities": {
     "untrustedWorkspaces": {
       "supported": true,
-      "description": "Fixora AI operates safely in untrusted workspaces with local static analyzer execution disabled."
+      "description": "Revion operates safely in untrusted workspaces with local static analyzer execution disabled."
     }
   },
   "contributes": {
     "commands": [
       {
         "command": "fixora.openDashboard",
-        "title": "Open Dashboard",
-        "category": "Fixora AI"
+        "title": "Open Assistant",
+        "category": "Revion"
       },
       {
         "command": "fixora.reviewSelection",
         "title": "Review Selected Code",
-        "category": "Fixora AI"
+        "category": "Revion"
       },
       {
         "command": "fixora.reviewFile",
         "title": "Review Current File",
-        "category": "Fixora AI"
+        "category": "Revion"
       },
       {
         "command": "fixora.reviewWorkspace",
         "title": "Review Workspace",
-        "category": "Fixora AI"
+        "category": "Revion"
       },
       {
         "command": "fixora.reviewGit",
         "title": "Review Git Changes",
-        "category": "Fixora AI"
+        "category": "Revion"
       },
       {
         "command": "fixora.reviewStaged",
         "title": "Review Staged Changes",
-        "category": "Fixora AI"
+        "category": "Revion"
       },
       {
         "command": "fixora.explainError",
         "title": "Explain Selected Error",
-        "category": "Fixora AI"
+        "category": "Revion"
       },
       {
         "command": "fixora.explainTerminal",
         "title": "Explain Terminal Error",
-        "category": "Fixora AI"
+        "category": "Revion"
       },
       {
         "command": "fixora.fixIssue",
         "title": "Fix Selected Issue",
-        "category": "Fixora AI"
+        "category": "Revion"
       },
       {
         "command": "fixora.securityScan",
-        "title": "Security Scan",
-        "category": "Fixora AI"
+        "title": "Security Audit",
+        "category": "Revion"
       },
       {
         "command": "fixora.performanceReview",
-        "title": "Performance Review",
-        "category": "Fixora AI"
+        "title": "Performance Audit",
+        "category": "Revion"
       },
       {
         "command": "fixora.qualityReview",
-        "title": "Code Quality Review",
-        "category": "Fixora AI"
+        "title": "Code Health & Quality Audit",
+        "category": "Revion"
       },
       {
         "command": "fixora.learningMode",
         "title": "Toggle Learning Mode",
-        "category": "Fixora AI"
+        "category": "Revion"
       },
       {
         "command": "fixora.clearDiagnostics",
         "title": "Clear Diagnostics",
-        "category": "Fixora AI"
+        "category": "Revion"
       },
       {
         "command": "fixora.viewHistory",
         "title": "View Review History",
-        "category": "Fixora AI"
+        "category": "Revion"
       },
       {
         "command": "fixora.configureApiKey",
         "title": "Configure Gemini API Key",
-        "category": "Fixora AI"
+        "category": "Revion"
       },
       {
         "command": "fixora.selectModel",
         "title": "Select AI Model",
-        "category": "Fixora AI"
+        "category": "Revion"
       },
       {
         "command": "fixora.configureExcludedFiles",
         "title": "Configure Excluded Files",
-        "category": "Fixora AI"
+        "category": "Revion"
       },
       {
         "command": "fixora.exportReport",
         "title": "Export HTML Audit Report",
-        "category": "Fixora AI"
+        "category": "Revion"
       },
       {
         "command": "fixora.installGitHook",
         "title": "Install Git Pre-Commit Guard",
-        "category": "Fixora AI"
+        "category": "Revion"
       },
       {
         "command": "fixora.analyzeComplexity",
         "title": "Analyze Code Complexity & Health",
-        "category": "Fixora AI"
+        "category": "Revion"
       },
       {
         "command": "fixora.toggleInlineDiagnostics",
         "title": "Toggle Error Lens (Inline Diagnostics)",
-        "category": "Fixora AI"
+        "category": "Revion"
       },
       {
         "command": "fixora.nextDiagnostic",
         "title": "Jump to Next Diagnostic",
-        "category": "Fixora AI"
+        "category": "Revion"
       },
       {
         "command": "fixora.previousDiagnostic",
         "title": "Jump to Previous Diagnostic",
-        "category": "Fixora AI"
+        "category": "Revion"
       },
       {
         "command": "fixora.formatDocument",
         "title": "Format Document (Prettier)",
-        "category": "Fixora AI"
+        "category": "Revion"
       },
       {
         "command": "fixora.formatSelection",
         "title": "Format Selection (Prettier)",
-        "category": "Fixora AI"
+        "category": "Revion"
       },
       {
         "command": "fixora.toggleComplexityLens",
         "title": "Toggle Code Complexity Lens",
-        "category": "Fixora AI"
+        "category": "Revion"
       },
       {
         "command": "fixora.toggleFormatter",
         "title": "Toggle Prettier Auto-Formatter",
-        "category": "Fixora AI"
+        "category": "Revion"
       },
       {
         "command": "fixora.toggleLinter",
-        "title": "Toggle Real-time Linter (ESLint & Style)",
-        "category": "Fixora AI"
+        "title": "Toggle Real-time Linter",
+        "category": "Revion"
       }
     ],
     "viewsContainers": {
       "activitybar": [
         {
           "id": "fixora-sidebar-view",
-          "title": "Fixora AI",
+          "title": "Revion",
           "icon": "media/icon.svg"
         }
       ]
@@ -223,20 +223,20 @@
         {
           "when": "editorHasSelection",
           "command": "fixora.reviewSelection",
-          "group": "FixoraAI@1"
+          "group": "Revion@1"
         },
         {
           "when": "editorHasSelection",
           "command": "fixora.explainError",
-          "group": "FixoraAI@2"
+          "group": "Revion@2"
         },
         {
           "command": "fixora.reviewFile",
-          "group": "FixoraAI@3"
+          "group": "Revion@3"
         },
         {
           "command": "fixora.securityScan",
-          "group": "FixoraAI@4"
+          "group": "Revion@4"
         }
       ],
       "commandPalette": [
@@ -293,6 +293,39 @@
         },
         {
           "command": "fixora.configureExcludedFiles"
+        },
+        {
+          "command": "fixora.exportReport"
+        },
+        {
+          "command": "fixora.installGitHook"
+        },
+        {
+          "command": "fixora.analyzeComplexity"
+        },
+        {
+          "command": "fixora.toggleInlineDiagnostics"
+        },
+        {
+          "command": "fixora.nextDiagnostic"
+        },
+        {
+          "command": "fixora.previousDiagnostic"
+        },
+        {
+          "command": "fixora.formatDocument"
+        },
+        {
+          "command": "fixora.formatSelection"
+        },
+        {
+          "command": "fixora.toggleComplexityLens"
+        },
+        {
+          "command": "fixora.toggleFormatter"
+        },
+        {
+          "command": "fixora.toggleLinter"
         }
       ]
     },
@@ -329,7 +362,7 @@
       }
     ],
     "configuration": {
-      "title": "Fixora AI",
+      "title": "Revion",
       "properties": {
         "fixora.provider": {
           "type": "string",
@@ -362,14 +395,18 @@
         },
         "fixora.model": {
           "type": "string",
-          "default": "gemini-1.5-flash",
+          "default": "gemini-2.0-flash",
           "enum": [
-            "gemini-1.5-flash",
             "gemini-2.0-flash",
-            "gemini-3.8-flash",
+            "gemini-1.5-flash",
             "gemini-1.5-pro"
           ],
-          "description": "Gemini model to use for analysis."
+          "description": "Gemini model to use for analysis.",
+          "enumDescriptions": [
+            "Recommended: Google Gemini 2.0 Flash (Next-gen ultra-fast multimodal model)",
+            "Google Gemini 1.5 Flash (Lightweight, stable, fast code analysis)",
+            "Google Gemini 1.5 Pro (Deep context reasoning for large codebases)"
+          ]
         },
         "fixora.enableLearningMode": {
           "type": "boolean",
@@ -406,7 +443,7 @@
             "**/*.lock",
             "**/package-lock.json"
           ],
-          "description": "Glob patterns of files and folders excluded from Fixora AI reviews."
+          "description": "Glob patterns of files and folders excluded from Revion reviews."
         },
         "fixora.requestTimeoutSeconds": {
           "type": "number",
@@ -416,7 +453,7 @@
         "fixora.errorLens.enabled": {
           "type": "boolean",
           "default": true,
-          "description": "Enable Fixora Error Lens: highlights entire lines with diagnostics and prints messages inline."
+          "description": "Enable Revion Error Lens: highlights entire lines with diagnostics and prints messages inline."
         },
         "fixora.errorLens.highlightLine": {
           "type": "boolean",
@@ -436,17 +473,17 @@
         "fixora.complexityLens.enabled": {
           "type": "boolean",
           "default": true,
-          "description": "Enable Fixora Complexity Lens: displays cyclomatic complexity metrics on the right side of code and offers offline refactorings."
+          "description": "Enable Revion Complexity Lens: displays cyclomatic complexity metrics on the right side of code and offers offline refactorings."
         },
         "fixora.formatter.enabled": {
           "type": "boolean",
           "default": true,
-          "description": "Enable Fixora Prettier Auto-Formatter: formats documents and heals syntax issues silently."
+          "description": "Enable Revion Prettier Auto-Formatter: formats documents and heals syntax issues silently."
         },
         "fixora.linter.enabled": {
           "type": "boolean",
           "default": true,
-          "description": "Enable Fixora Real-time Linter: catches syntax and style issues in JS, TS, HTML, CSS, and Python as you type (like ESLint)."
+          "description": "Enable Revion Real-time Linter: catches syntax and style issues in JS, TS, HTML, CSS, and Python as you type (like ESLint)."
         },
         "fixora.formatter.tabWidth": {
           "type": "number",

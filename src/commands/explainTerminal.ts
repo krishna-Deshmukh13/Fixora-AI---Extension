@@ -2,17 +2,38 @@ import * as vscode from 'vscode';
 import { Logger } from '../utils/logger';
 import { SidebarProvider } from '../providers/sidebarProvider';
 import { DebuggerEngine } from '../core/debuggerEngine';
+import { BRANDING } from '../constants/branding';
 
 export function registerExplainTerminalCommand(
-  context: vscode.ExtensionContext,
-  sidebarProvider: SidebarProvider
+  _context: vscode.ExtensionContext,
+  _sidebarProvider: SidebarProvider
 ): vscode.Disposable {
   const logger = Logger.getInstance();
 
   return vscode.commands.registerCommand('fixora.explainTerminal', async () => {
+    // Smart clipboard pre-detection: if clipboard contains stack trace keywords, prefill it!
+    let clipboardPrefill = '';
+    try {
+      const clipText = await vscode.env.clipboard.readText();
+      if (
+        clipText &&
+        clipText.trim().length > 10 &&
+        (clipText.includes('Error') ||
+          clipText.includes('Exception') ||
+          clipText.includes('Traceback') ||
+          clipText.includes('at ') ||
+          clipText.includes('line '))
+      ) {
+        clipboardPrefill = clipText.trim();
+      }
+    } catch {
+      // Clipboard read fallback
+    }
+
     const errorText = await vscode.window.showInputBox({
-      title: 'Fixora AI: Explain Terminal Error & Stack Trace',
-      prompt: 'Paste the error message, compiler output, or stack trace from your terminal',
+      title: `${BRANDING.PRODUCT_NAME}: Explain Terminal Error & Stack Trace`,
+      prompt: 'Paste the error message, compiler log, or stack trace from your terminal',
+      value: clipboardPrefill,
       placeHolder: 'e.g. ReferenceError: process is not defined at Object.<anonymous> (/app/index.js:15:3)',
       ignoreFocusOut: true,
     });

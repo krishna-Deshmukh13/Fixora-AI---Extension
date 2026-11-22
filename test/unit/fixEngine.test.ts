@@ -112,7 +112,7 @@ describe('FixEngine & DiffProvider', () => {
         'vscode.diff',
         expect.anything(),
         expect.anything(),
-        expect.stringContaining('Fixora AI Fix Preview'),
+        expect.stringContaining('Revion Fix Preview'),
         expect.anything()
       );
     });

@@ -45,7 +45,7 @@ describe('SidebarProvider & Webview Foundation', () => {
     expect(html).toContain("Content-Security-Policy");
     expect(html).toContain("script-src 'nonce-test-nonce-fixed'");
     expect(html).toContain("default-src 'none'");
-    expect(html).toContain("Fixora AI");
+    expect(html).toContain("Revion");
     expect(html).toContain("toggle-linter");
     expect(html).toContain("toggle-error-lens");
     expect(html).toContain("toggle-complexity-lens");

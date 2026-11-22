@@ -9,9 +9,9 @@ docs/**
 tsconfig.json
 esbuild.js
 vitest.config.ts
-*.map
+**/*.map
 node_modules/**
-!dist/**
+!dist/extension.js
 !media/**
 !package.json
 !README.md

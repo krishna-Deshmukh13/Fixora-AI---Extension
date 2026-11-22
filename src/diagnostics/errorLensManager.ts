@@ -1,5 +1,6 @@
 import * as vscode from 'vscode';
 import { Logger } from '../utils/logger';
+import { BRANDING } from '../constants/branding';
 
 export interface ErrorLensConfig {
   enabled: boolean;
@@ -11,7 +12,7 @@ export interface ErrorLensConfig {
 }
 
 /**
- * 100% Native ErrorLens Implementation for Fixora AI.
+ * 100% Native ErrorLens Implementation for Revion.
  * Provides live inline diagnostics, entire line highlighting, gutter icons,
  * status bar summaries, and quick jumping between errors and warnings.
  */
@@ -117,7 +118,7 @@ export class ErrorLensManager {
   private initStatusBar(): void {
     this.statusBarItem = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Left, 40);
     this.statusBarItem.command = 'fixora.nextDiagnostic';
-    this.statusBarItem.tooltip = 'Fixora Lens: Click to jump to next issue';
+    this.statusBarItem.tooltip = `${BRANDING.LENS_STATUS_NAME}: Click to jump to next issue`;
     if (this.showStatusBar && this.enabled) {
       this.statusBarItem.show();
     }
@@ -277,11 +278,11 @@ export class ErrorLensManager {
     }
 
     if (errors === 0 && warnings === 0) {
-      this.statusBarItem.text = `$(check) Fixora Lens`;
-      this.statusBarItem.tooltip = 'Fixora Error Lens: No diagnostics in active file';
+      this.statusBarItem.text = `$(check) ${BRANDING.LENS_STATUS_NAME}`;
+      this.statusBarItem.tooltip = `${BRANDING.PRODUCT_NAME} Lens: No diagnostics in active file`;
     } else {
-      this.statusBarItem.text = `$(error) ${errors}  $(warning) ${warnings}  Fixora Lens`;
-      this.statusBarItem.tooltip = `Fixora Error Lens: ${errors} error(s), ${warnings} warning(s). Click to jump to next.`;
+      this.statusBarItem.text = `$(error) ${errors}  $(warning) ${warnings}  ${BRANDING.LENS_STATUS_NAME}`;
+      this.statusBarItem.tooltip = `${BRANDING.PRODUCT_NAME} Lens: ${errors} error(s), ${warnings} warning(s). Click to jump to next.`;
     }
     this.statusBarItem.show();
   }
@@ -303,7 +304,7 @@ export class ErrorLensManager {
       this.updateDecorations(editor);
     }
     vscode.window.showInformationMessage(
-      `Fixora Error Lens: ${this.enabled ? 'Enabled' : 'Disabled'}`
+      `${BRANDING.PRODUCT_NAME} Lens: ${this.enabled ? 'Enabled' : 'Disabled'}`
     );
     return this.enabled;
   }
@@ -321,7 +322,7 @@ export class ErrorLensManager {
 
     const diags = vscode.languages.getDiagnostics(editor.document.uri);
     if (diags.length === 0) {
-      vscode.window.showInformationMessage('Fixora Error Lens: No issues found in current file.');
+      vscode.window.showInformationMessage(`${BRANDING.PRODUCT_NAME} Lens: No issues found in current file.`);
       return;
     }
 
@@ -348,7 +349,7 @@ export class ErrorLensManager {
 
     const diags = vscode.languages.getDiagnostics(editor.document.uri);
     if (diags.length === 0) {
-      vscode.window.showInformationMessage('Fixora Error Lens: No issues found in current file.');
+      vscode.window.showInformationMessage(`${BRANDING.PRODUCT_NAME} Lens: No issues found in current file.`);
       return;
     }
 

@@ -1,5 +1,14 @@
 import { ReviewFinding, ReviewResult } from './review';
 import { ErrorExplanationResult } from './providers';
+import { HistoryRecord } from '../history/historyManager';
+
+export interface ChatMessage {
+  id: string;
+  sender: 'user' | 'assistant';
+  text: string;
+  timestamp: string;
+  codeBlocks?: Array<{ language: string; code: string }>;
+}
 
 /**
  * Messages sent from the Webview UI to the Extension Host.
@@ -24,12 +33,20 @@ export type WebviewToExtensionMessage =
   | { type: 'explainTerminalError' }
   | { type: 'clearDiagnostics' }
   | { type: 'configureApiKey' }
+  | { type: 'submitApiKey'; apiKey: string }
+  | { type: 'switchToOllama' }
+  | { type: 'runSampleReview' }
+  | { type: 'openSettings' }
   | { type: 'selectModel'; model: string }
   | { type: 'toggleLearningMode'; enabled: boolean }
   | { type: 'explainFinding'; findingId: string }
   | { type: 'previewFix'; findingId: string }
   | { type: 'applyFix'; findingId: string }
   | { type: 'jumpToCode'; filePath: string; line: number; column?: number }
+  | { type: 'sendChatMessage'; text: string }
+  | { type: 'clearChat' }
+  | { type: 'loadHistoryRun'; recordId: string }
+  | { type: 'clearHistory' }
   | { type: 'requestInitialState' };
 
 /**
@@ -40,8 +57,10 @@ export type ExtensionToWebviewMessage =
       type: 'stateUpdate';
       data: {
         isConfigured: boolean;
+        providerType: 'gemini' | 'ollama';
         activeModel: string;
         learningMode: boolean;
+        activeFile?: { name: string; path: string; line: number } | null;
         errorLensEnabled?: boolean;
         complexityLensEnabled?: boolean;
         formatterEnabled?: boolean;
@@ -61,6 +80,8 @@ export type ExtensionToWebviewMessage =
           filePath?: string;
           line?: number;
         } | null;
+        history?: HistoryRecord[];
+        chatMessages?: ChatMessage[];
         isLoading: boolean;
         loadingMessage?: string;
       };
@@ -72,6 +93,10 @@ export type ExtensionToWebviewMessage =
   | {
       type: 'reviewError';
       error: string;
+    }
+  | {
+      type: 'chatResponse';
+      message: ChatMessage;
     }
   | {
       type: 'errorExplained';

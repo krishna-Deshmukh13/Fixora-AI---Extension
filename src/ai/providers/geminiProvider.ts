@@ -46,10 +46,9 @@ export class GeminiProvider implements AIProvider {
   ): Promise<any> {
     const candidateModels = [
       this.modelName,
-      'gemini-1.5-flash',
       'gemini-2.0-flash',
+      'gemini-1.5-flash',
       'gemini-1.5-pro',
-      'gemini-3.8-flash',
     ];
     const uniqueModels = [...new Set(candidateModels)];
     let lastError: any;

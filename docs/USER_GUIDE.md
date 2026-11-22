@@ -1,81 +1,104 @@
-# Fixora AI User Guide
+# Revion User Guide
 
-Welcome to **Fixora AI** — your AI-powered code reviewer, bug detector, and debugging assistant in Visual Studio Code.
+Welcome to **Revion** — your intelligent code review, error lens, and debugging assistant in Visual Studio Code.
 
 ---
 
 ## Table of Contents
-1. [Sidebar Dashboard Walkthrough](#1-sidebar-dashboard-walkthrough)
-2. [Code Review Modes](#2-code-review-modes)
-3. [Understanding Findings & Severity Levels](#3-understanding-findings--severity-levels)
-4. [Using AI Auto-Fix & Diff Preview](#4-using-ai-auto-fix--diff-preview)
-5. [Explaining Errors & Stack Traces](#5-explaining-errors--stack-traces)
-6. [Security & Performance Scans](#6-security--performance-scans)
-7. [Learning Mode for Beginners](#7-learning-mode-for-beginners)
-8. [Configuring Settings](#8-configuring-settings)
+1. [Sidebar & Navigation Walkthrough](#1-sidebar--navigation-walkthrough)
+2. [First-Run Onboarding Experience](#2-first-run-onboarding-experience)
+3. [Live In-Editor Engines](#3-live-in-editor-engines)
+4. [Code Review Modes & Audits](#4-code-review-modes--audits)
+5. [Understanding Findings & Severity Levels](#5-understanding-findings--severity-levels)
+6. [Using AI Auto-Fix & Diff Preview](#6-using-ai-auto-fix--diff-preview)
+7. [Explaining Errors & Stack Traces](#7-explaining-errors--stack-traces)
+8. [Security & Code Health Audits](#8-security--code-health-audits)
+9. [Pre-Commit Guard & Reports](#9-pre-commit-guard--reports)
+10. [Configuring Settings](#10-configuring-settings)
 
 ---
 
-## 1. Sidebar Dashboard Walkthrough
+## 1. Sidebar & Navigation Walkthrough
 
-Click the **Fixora AI** icon on the VS Code Activity Bar (left-hand sidebar).
+Click the **Revion** Activity Bar icon (on the primary side bar).
 
-The sidebar features three tabs:
-- **Dashboard**: High-level issue counts (Critical, Warning, Info), quick review action buttons, and active status indicators.
-- **Issues**: A list of all identified findings from the most recent scan. Clicking on any issue jumps directly to the file and line number in your editor.
-- **History**: An archive of previous review runs with timestamps, issue counts, and run duration.
-
----
-
-## 2. Code Review Modes
-
-Fixora AI supports four convenient review scopes:
-
-### Mode 1: Review Selected Code (`Ctrl + Shift + F1`)
-Highlight lines of code in your editor, right-click, and select **Fixora AI: Review Selected Code**. Fixora AI maps snippet line numbers back to your file coordinates.
-
-### Mode 2: Review Active File (`Ctrl + Shift + F2`)
-Analyzes the entire open document. Identifies logical inconsistencies, unhandled exceptions, and dead code.
-
-### Mode 3: Review Workspace (`Ctrl + Shift + F3`)
-Scans multiple source code files across your open workspace folder (capped at 30 files per batch to prevent rate limiting). Excludes `.git`, `node_modules`, `dist`, and environment files automatically.
-
-### Mode 4: Review Git Changes (`Ctrl + Shift + F4` / `Ctrl + Shift + F5`)
-- **Review Git Changes (`Ctrl + Shift + F4`)**: Analyzes all uncommitted changes in your local working tree.
-- **Review Staged Changes (`Ctrl + Shift + F5`)**: Audits files added to the Git staging index (`git add`) prior to creating a commit.
+The redesigned Revion interface features four dedicated workspace tabs:
+- **Assistant**: Interactive AI chat assistant with active workspace awareness, selected code prefill, and clear chat controls.
+- **Review**: Live editor feature switches (Error Lens, Complexity Lens, Linter, Formatter) and instant workflow trigger buttons.
+- **Issues**: Inspector of all active findings from the current review, filterable by severity (All, Critical, Warnings, Hints) with 1-click jump-to-code and diff preview.
+- **History**: Historical archive of review runs with duration, file count, and click-to-load inspection.
 
 ---
 
-## 3. Understanding Findings & Severity Levels
+## 2. First-Run Onboarding Experience
 
-Every issue reported by Fixora AI includes:
+When opening Revion for the first time without an API key:
+1. An inline welcome onboarding card appears at the top of the Assistant tab.
+2. Select your preferred provider: **Google Gemini** (recommended) or **Ollama** (offline local LLM).
+3. Paste your Gemini API key (or click *Get Free Key* to open Google AI Studio).
+4. Keys are stored safely in VS Code's encrypted `SecretStorage` (`fixora.geminiApiKey`) — never saved to plaintext settings.
+5. Click **Run Sample Review** to immediately test and verify your connection on a live sample code snippet.
+
+---
+
+## 3. Live In-Editor Engines
+
+Revion runs 4 high-speed offline engines inside your editor:
+- **⚡ Error Lens**: Displays diagnostics inline at the end of the error line, with line background tinting and status bar navigation (`Alt + F8`).
+- **🧠 Complexity Lens**: Computes Cyclomatic Complexity (CC) on function headers with color-coded ratings and 1-click refactoring (`Ctrl + .`).
+- **🔍 Real-Time Linter**: Validates JavaScript, TypeScript, Python, HTML, and CSS as you type with zero network lag.
+- **✨ Prettier Formatter**: Clean document and selection formatting with automatic syntax healing.
+
+---
+
+## 4. Code Review Modes & Audits
+
+Revion supports comprehensive review scopes:
+
+### Mode 1: Review Selected Code (`Ctrl + Alt + R`)
+Highlight code in any active editor, right-click, and select **Revion: Review Selected Code**. Revion maps line coordinates back to your file.
+
+### Mode 2: Review Active File
+Analyzes the entire open document, identifying architectural issues, unhandled exceptions, and dead code.
+
+### Mode 3: Review Workspace
+Scans source files across your workspace (capped at 30 files per batch to prevent rate limiting). Excludes `.git`, `node_modules`, `dist`, and environment files automatically.
+
+### Mode 4: Review Git Changes
+Audits uncommitted changes or staged changes prior to committing to ensure pull-request readiness.
+
+---
+
+## 5. Understanding Findings & Severity Levels
+
+Every issue reported by Revion includes:
 - **Severity Badge**:
-  - `CRITICAL`: Security vulnerabilities, unhandled null pointers, infinite loop risks, crash-inducing syntax errors.
+  - `CRITICAL`: Security vulnerabilities, unhandled null pointers, infinite loops, breaking syntax errors.
   - `WARNING`: Logic flaws, unawaited promises, loose equalities, potential edge-case errors.
   - `INFO`: Code readability, style consistency, minor performance tips.
-- **Source Label**: Clearly labels whether the issue was identified by a local **Static Analyzer** (e.g. ESLint, Ruff) or **AI Provider** (Google Gemini).
-- **Line & Column**: Precise location coordinates with jump-to-source navigation.
-- **Why It Matters**: Concise explanation of the technical risk.
-- **Suggested Solution**: Instructions on how to remediate the issue.
+- **Category**: `security`, `bug`, `performance`, `complexity`, `style`.
+- **Line & Column**: Precise coordinates with 1-click jump-to-source navigation.
+- **Why It Matters**: Concise technical explanation of why the finding poses a risk.
+- **Suggested Solution**: Concrete remediation steps.
 
 ---
 
-## 4. Using AI Auto-Fix & Diff Preview
+## 6. Using AI Auto-Fix & Diff Preview
 
 When an issue has a suggested code fix:
-1. Click the **Preview Fix** button on the issue card in the sidebar or select **Fix with Fixora AI** from the editor lightbulb menu (`Ctrl + .`).
-2. Fixora AI opens a side-by-side **Diff Editor** comparing your original code on the left with the proposed fix on the right.
-3. Review the changes. If satisfied, click **Apply Fix**.
-4. The correction is applied cleanly via the VS Code `WorkspaceEdit` API, preserving surrounding indentation and comments.
+1. Click **Preview** on the issue card in the sidebar or select **Fix with Revion** from the editor lightbulb menu (`Ctrl + .`).
+2. Revion opens a side-by-side **Diff Editor** comparing your original file with proposed changes.
+3. Review the proposed diff. If satisfied, click **Apply Fix**.
+4. The change is cleanly applied via the VS Code `WorkspaceEdit` API.
 
 ---
 
-## 5. Explaining Errors & Stack Traces
+## 7. Explaining Errors & Stack Traces
 
 Encountering a confusing compiler error or runtime exception?
 
-### From the Problems Panel (`Ctrl + Shift + F6`)
-Place your cursor on any highlighted squiggly error line in your editor and press `Ctrl + Shift + F6`. Fixora AI answers:
+### From the Problems Panel (`Ctrl + Alt + E`)
+Place your cursor on any highlighted diagnostic line and press `Ctrl + Alt + E`. Revion answers:
 1. What does this error mean?
 2. Why did it happen?
 3. Which line caused it?
@@ -83,30 +106,32 @@ Place your cursor on any highlighted squiggly error line in your editor and pres
 5. How can I fix it?
 6. Show corrected code.
 
-### From Terminal Stack Traces (`Ctrl + Shift + F7`)
-Highlight an error or stack trace in your integrated terminal, right-click, and select **Fixora AI: Explain Terminal Error**. Fixora AI parses the stack trace (Node, Python, Java, C++, PHP) and identifies the offending file and line.
+### From Terminal Stack Traces
+Run **`Revion: Explain Terminal Error`** from the Command Palette (`Ctrl + Shift + P`). Revion automatically inspects your clipboard for stack traces, pre-fills the input prompt, and generates a structured root-cause analysis.
 
 ---
 
-## 6. Security & Performance Scans
+## 8. Security & Code Health Audits
 
-- **Security Scan (`Ctrl + Shift + F8`)**: Audits your code for OWASP Top 10 risks including SQL injection, cross-site scripting (XSS), command injection, insecure deserialization, and exposed credentials.
-- **Performance Review (`Ctrl + Shift + F9`)**: Flags expensive quadratic operations, unindexed SQL queries, and blocking synchronous file operations in Node.js event loops.
-
----
-
-## 7. Learning Mode for Beginners
-
-If you are a student or beginner developer:
-1. Open the Command Palette (`Ctrl + Shift + P`).
-2. Run **`Fixora AI: Toggle Learning Mode`**.
-3. When enabled, Fixora AI formats explanations with pedagogical context, explaining fundamental programming concepts and principles rather than just returning brief technical summaries.
+- **Security Audit (OWASP)**: Audits your code against OWASP Top 10 vulnerabilities (SQLi, XSS, SSRF, command injection, and exposed credentials).
+- **Code Health Audit**: Combines local AST complexity analysis with duplicate code detection to flag maintainability bottlenecks.
 
 ---
 
-## 8. Configuring Settings
+## 9. Pre-Commit Guard & Reports
 
-Access Fixora AI settings by navigating to `File > Preferences > Settings` and searching for `fixora`:
-- `fixora.model`: Select between `gemini-2.5-flash` (fastest) and `gemini-2.5-pro` (deepest reasoning).
-- `fixora.analysis.enableStaticAnalyzers`: Enable or disable local linter integration.
-- `fixora.security.autoRedactSecrets`: Automatically scrub credentials from code before AI transmission.
+- **Install Pre-Commit Guard**: Installs a zero-dependency pre-commit hook into `.git/hooks/pre-commit` to prevent accidental commits containing API keys, AWS tokens, or private certificates.
+- **Export HTML Report**: Generates a self-contained, offline HTML audit report with metrics cards and formatted findings.
+
+---
+
+## 10. Configuring Settings
+
+Access Revion settings via `File > Preferences > Settings` (or the gear icon in Revion's header) and search for `fixora`:
+- `fixora.model`: Active Gemini model (`gemini-2.0-flash` [default], `gemini-1.5-flash`, `gemini-1.5-pro`).
+- `fixora.provider`: Switch between `gemini` and `ollama`.
+- `fixora.ollama.model`: Selected local Ollama model (`codellama`, `deepseek-coder`, `llama3`).
+- `fixora.enableErrorLens`: Toggle inline error lens decorations.
+- `fixora.enableComplexityLens`: Toggle cyclomatic complexity badges.
+- `fixora.enableRealtimeLinter`: Toggle live AST linter.
+- `fixora.enablePrettierFormatter`: Toggle integrated code formatter.

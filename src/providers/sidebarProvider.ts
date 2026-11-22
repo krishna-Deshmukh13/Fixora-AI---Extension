@@ -1,5 +1,9 @@
 import * as vscode from 'vscode';
-import { ExtensionToWebviewMessage, WebviewToExtensionMessage } from '../types/webview';
+import {
+  ChatMessage,
+  ExtensionToWebviewMessage,
+  WebviewToExtensionMessage,
+} from '../types/webview';
 import { ReviewResult } from '../types/review';
 import { ErrorExplanationResult } from '../types/providers';
 import { Logger } from '../utils/logger';
@@ -10,6 +14,8 @@ import { ErrorLensManager } from '../diagnostics/errorLensManager';
 import { ComplexityLensManager } from '../metrics/complexityLensManager';
 import { PrettierFormatter } from '../formatter/prettierFormatter';
 import { RealtimeLinter } from '../linter/realtimeLinter';
+import { AIManager } from '../ai/aiManager';
+import { BRANDING } from '../constants/branding';
 
 export { getNonce };
 
@@ -22,10 +28,10 @@ export interface SidebarStats {
 }
 
 /**
- * Manages the Fixora AI Sidebar Webview in the Activity Bar.
+ * Manages the Revion Sidebar Webview in the Activity Bar.
  */
 export class SidebarProvider implements vscode.WebviewViewProvider {
-  public static readonly viewType = 'fixora.sidebar';
+  public static readonly viewType = BRANDING.VIEW_ID_SIDEBAR;
 
   private _view?: vscode.WebviewView;
   private _logger = Logger.getInstance();
@@ -44,17 +50,29 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
     line?: number;
   } | null = null;
   private _recentFiles: string[] = [];
+  private _chatMessages: ChatMessage[] = [];
 
   constructor(
     private readonly _extensionUri: vscode.Uri,
     private readonly _context: vscode.ExtensionContext
   ) {
     this.loadPersistedStats();
+    this.registerActiveEditorListener();
+  }
+
+  private registerActiveEditorListener(): void {
+    vscode.window.onDidChangeActiveTextEditor(() => {
+      this.broadcastState();
+    }, null, this._context.subscriptions);
+
+    vscode.window.onDidChangeTextEditorSelection(() => {
+      this.broadcastState();
+    }, null, this._context.subscriptions);
   }
 
   public resolveWebviewView(
     webviewView: vscode.WebviewView,
-    context: vscode.WebviewViewResolveContext,
+    _context: vscode.WebviewViewResolveContext,
     _token: vscode.CancellationToken
   ): void {
     this._view = webviewView;
@@ -65,8 +83,8 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
     };
 
     const isConfigured = this.isApiKeyConfigured();
-    const config = vscode.workspace.getConfiguration('fixora');
-    const activeModel = config.get<string>('model', 'gemini-3.8-flash');
+    const config = vscode.workspace.getConfiguration(BRANDING.CONFIG_SECTION);
+    const activeModel = config.get<string>('model', BRANDING.DEFAULT_GEMINI_MODEL);
     const learningMode = config.get<boolean>('enableLearningMode', false);
 
     webviewView.webview.html = this.getHtmlForWebview(
@@ -76,7 +94,7 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
       learningMode
     );
 
-    // Listen for messages coming from the Webview script
+    // Handle messages coming from Webview UI
     webviewView.webview.onDidReceiveMessage(
       async (message: WebviewToExtensionMessage) => {
         await this.handleWebviewMessage(message);
@@ -85,7 +103,7 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
       this._context.subscriptions
     );
 
-    // Send initial state once webview is ready
+    // Initial state broadcast
     this.broadcastState();
   }
 
@@ -93,7 +111,7 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
    * Handle user action messages received from the webview.
    */
   public async handleWebviewMessage(message: WebviewToExtensionMessage): Promise<void> {
-    this._logger.info(`Sidebar received action: ${message.type}`);
+    this._logger.info(`Revion sidebar received action: ${message.type}`);
 
     switch (message.type) {
       case 'requestInitialState':
@@ -116,16 +134,16 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
         await vscode.commands.executeCommand('fixora.securityScan');
         break;
 
-      case 'explainTerminalError':
-        await vscode.commands.executeCommand('fixora.explainTerminal');
-        break;
-
       case 'runPerformanceReview':
         await vscode.commands.executeCommand('fixora.performanceReview');
         break;
 
       case 'runComplexityAudit':
-        await vscode.commands.executeCommand('fixora.analyzeComplexity');
+        await vscode.commands.executeCommand('fixora.qualityReview');
+        break;
+
+      case 'explainTerminalError':
+        await vscode.commands.executeCommand('fixora.explainTerminal');
         break;
 
       case 'exportReport':
@@ -178,32 +196,46 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
         this.broadcastState();
         break;
 
-      case 'clearDiagnostics':
-        await vscode.commands.executeCommand('fixora.clearDiagnostics');
-        this._currentReview = null;
-        this.broadcastState();
-        break;
-
-      case 'selectModel':
-        if (message.model) {
-          const config = vscode.workspace.getConfiguration('fixora');
-          await config.update('model', message.model, vscode.ConfigurationTarget.Global);
+      case 'submitApiKey':
+        if (message.apiKey && message.apiKey.trim().length > 0) {
+          const cleanKey = message.apiKey.trim();
+          await this._context.secrets.store(BRANDING.SECRET_KEY_GEMINI, cleanKey);
+          this.setApiKeyConfigured(true);
+          vscode.window.showInformationMessage('Revion: Gemini API Key securely stored.');
           this.broadcastState();
         }
         break;
 
-      case 'toggleLearningMode':
-        const cfg = vscode.workspace.getConfiguration('fixora');
-        await cfg.update('enableLearningMode', message.enabled, vscode.ConfigurationTarget.Global);
+      case 'switchToOllama':
+        const cfg = vscode.workspace.getConfiguration(BRANDING.CONFIG_SECTION);
+        await cfg.update('provider', 'ollama', vscode.ConfigurationTarget.Global);
+        this.setApiKeyConfigured(true);
+        vscode.window.showInformationMessage('Revion: Switched to Local Ollama (100% Offline).');
+        this.broadcastState();
+        break;
+
+      case 'runSampleReview':
+        await this.runSampleReview();
+        break;
+
+      case 'openSettings':
+        vscode.commands.executeCommand('workbench.action.openSettings', BRANDING.CONFIG_SECTION);
+        break;
+
+      case 'selectModel':
+        await vscode.commands.executeCommand('fixora.selectModel');
+        this.broadcastState();
+        break;
+
+      case 'clearDiagnostics':
+        await vscode.commands.executeCommand('fixora.clearDiagnostics');
+        this._currentReview = null;
+        this._activeExplanation = null;
         this.broadcastState();
         break;
 
       case 'jumpToCode':
         await this.jumpToCode(message.filePath, message.line, message.column);
-        break;
-
-      case 'explainFinding':
-        vscode.window.showInformationMessage(`Fixora AI: Explaining finding ${message.findingId}`);
         break;
 
       case 'previewFix':
@@ -228,6 +260,133 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
           }
         }
         break;
+
+      case 'sendChatMessage':
+        await this.handleUserChatMessage(message.text);
+        break;
+
+      case 'clearChat':
+        this._chatMessages = [];
+        this.broadcastState();
+        break;
+
+      case 'loadHistoryRun':
+        if (message.recordId) {
+          const history = HistoryManager.getInstance().getHistory();
+          const record = history.find((h) => h.id === message.recordId);
+          if (record) {
+            this._currentReview = record.result;
+            this.broadcastState();
+            if (this._view) {
+              this._view.webview.postMessage({
+                type: 'reviewCompleted',
+                data: record.result,
+              });
+            }
+          }
+        }
+        break;
+
+      case 'clearHistory':
+        await HistoryManager.getInstance().clearHistory();
+        this.broadcastState();
+        break;
+    }
+  }
+
+  /**
+   * Interactive AI assistant chat handling.
+   */
+  private async handleUserChatMessage(userText: string): Promise<void> {
+    const userMsg: ChatMessage = {
+      id: `user-${Date.now()}`,
+      sender: 'user',
+      text: userText,
+      timestamp: new Date().toISOString(),
+    };
+    this._chatMessages.push(userMsg);
+
+    this.broadcastState(true, 'Thinking...');
+
+    try {
+      const editor = vscode.window.activeTextEditor;
+      let contextCode = '';
+      let filePath = 'active_editor';
+      let languageId = 'plaintext';
+
+      if (editor) {
+        filePath = editor.document.fileName;
+        languageId = editor.document.languageId;
+        const selection = editor.selection;
+        contextCode = selection && !selection.isEmpty
+          ? editor.document.getText(selection)
+          : editor.document.getText(new vscode.Range(0, 0, Math.min(150, editor.document.lineCount - 1), 200));
+      }
+
+      const aiManager = AIManager.getInstance();
+      const isConfigured = await aiManager.isConfigured();
+
+      if (!isConfigured) {
+        const replyMsg: ChatMessage = {
+          id: `asst-${Date.now()}`,
+          sender: 'assistant',
+          text: '⚠️ **API Key Required:** To chat with Revion, please enter your Gemini API key in the connection banner above or switch to Local Ollama.',
+          timestamp: new Date().toISOString(),
+        };
+        this._chatMessages.push(replyMsg);
+        this.broadcastState(false);
+        this._view?.webview.postMessage({ type: 'chatResponse', message: replyMsg });
+        return;
+      }
+
+      // Query AI Provider
+      const provider = await aiManager.getProvider();
+      const prompt = `User question: "${userText}"\n\nCurrent file (${filePath}, language: ${languageId}):\n\`\`\`${languageId}\n${contextCode}\n\`\`\`\n\nProvide a concise, direct, professional response with code snippets if applicable.`;
+
+      const result = await provider.reviewCode({
+        code: contextCode || 'console.log("hello");',
+        filePath,
+        languageId,
+        learningMode: false,
+      });
+
+      const replyText = result.summary || `Analysis completed for ${filePath.split(/[\\/]/).pop()}. Found ${result.totalIssues} issue(s).`;
+      const replyMsg: ChatMessage = {
+        id: `asst-${Date.now()}`,
+        sender: 'assistant',
+        text: replyText,
+        timestamp: new Date().toISOString(),
+      };
+
+      this._chatMessages.push(replyMsg);
+      this.broadcastState(false);
+      this._view?.webview.postMessage({ type: 'chatResponse', message: replyMsg });
+    } catch (err: any) {
+      this._logger.warn(`Chat assistant error: ${err?.message || err}`);
+      const errorMsg: ChatMessage = {
+        id: `asst-${Date.now()}`,
+        sender: 'assistant',
+        text: `Error processing request: ${err?.message || 'Check network connection or API key'}.`,
+        timestamp: new Date().toISOString(),
+      };
+      this._chatMessages.push(errorMsg);
+      this.broadcastState(false);
+      this._view?.webview.postMessage({ type: 'chatResponse', message: errorMsg });
+    }
+  }
+
+  /**
+   * Run sample analysis on bundled demo file.
+   */
+  private async runSampleReview(): Promise<void> {
+    try {
+      const demoUri = vscode.Uri.joinPath(this._extensionUri, 'samples', 'demo.js');
+      const doc = await vscode.workspace.openTextDocument(demoUri);
+      await vscode.window.showTextDocument(doc);
+      await vscode.commands.executeCommand('fixora.qualityReview');
+    } catch (err) {
+      this._logger.warn('Could not open demo.js', err);
+      vscode.window.showWarningMessage('Revion: Open any code file to run an audit.');
     }
   }
 
@@ -249,7 +408,7 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
       editor.revealRange(range, vscode.TextEditorRevealType.InCenter);
     } catch (err) {
       this._logger.error(`Failed to navigate to ${filePath}:${line}`, err);
-      vscode.window.showErrorMessage(`Fixora AI: Could not open file ${filePath}`);
+      vscode.window.showErrorMessage(`Revion: Could not open file ${filePath}`);
     }
   }
 
@@ -265,21 +424,38 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
       return;
     }
 
-    const config = vscode.workspace.getConfiguration('fixora');
+    const config = vscode.workspace.getConfiguration(BRANDING.CONFIG_SECTION);
+    const providerType = config.get<'gemini' | 'ollama'>('provider', 'gemini');
     const isConfigured = this.isApiKeyConfigured();
-    const activeModel = config.get<string>('model', 'gemini-3.8-flash');
+    const activeModel = config.get<string>('model', BRANDING.DEFAULT_GEMINI_MODEL);
     const learningMode = config.get<boolean>('enableLearningMode', false);
     const errorLensEnabled = ErrorLensManager.getInstance().isEnabled();
     const complexityLensEnabled = ComplexityLensManager.getInstance().isEnabled();
     const formatterEnabled = PrettierFormatter.getInstance().isEnabled();
     const linterEnabled = RealtimeLinter.getInstance().isEnabled();
 
+    // Active editor details
+    let activeFile: { name: string; path: string; line: number } | null = null;
+    const activeEditor = vscode.window.activeTextEditor;
+    if (activeEditor) {
+      const p = activeEditor.document.fileName;
+      activeFile = {
+        name: p.split(/[\\/]/).pop() || 'Untitled',
+        path: p,
+        line: activeEditor.selection.active.line + 1,
+      };
+    }
+
+    const history = HistoryManager.getInstance().getHistory();
+
     const message: ExtensionToWebviewMessage = {
       type: 'stateUpdate',
       data: {
         isConfigured,
+        providerType,
         activeModel,
         learningMode,
+        activeFile,
         errorLensEnabled,
         complexityLensEnabled,
         formatterEnabled,
@@ -288,6 +464,8 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
         recentFiles: this._recentFiles,
         currentReview: this._currentReview,
         activeExplanation: this._activeExplanation,
+        history,
+        chatMessages: this._chatMessages,
         isLoading,
         loadingMessage,
       },
@@ -296,9 +474,6 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
     this._view.webview.postMessage(message);
   }
 
-  /**
-   * Publish error explanation to the sidebar.
-   */
   public displayErrorExplanation(
     error: string,
     explanation: ErrorExplanationResult,
@@ -321,19 +496,14 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
     }
   }
 
-  /**
-   * Publish review results to the sidebar.
-   */
   public displayReviewResult(result: ReviewResult): void {
     this._currentReview = result;
 
-    // Update stats
     this._stats.totalReviews += 1;
     this._stats.totalIssuesDetected += result.totalIssues;
     this._stats.criticalCount += result.criticalCount;
     this._stats.warningCount += result.warningCount;
 
-    // Track recent file
     for (const file of result.filesAnalyzed) {
       if (!this._recentFiles.includes(file)) {
         this._recentFiles.unshift(file);
@@ -352,9 +522,6 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
     }
   }
 
-  /**
-   * Notify sidebar of review error.
-   */
   public displayError(errorMessage: string): void {
     if (this._view) {
       this.broadcastState(false);
@@ -365,12 +532,12 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
     }
   }
 
-  /**
-   * Check if user has configured the Gemini API Key.
-   */
   private isApiKeyConfigured(): boolean {
-    // Note: checking SecretStorage synchronously is supported via cached flag
-    // We maintain a boolean flag in extensionContext.workspaceState
+    const config = vscode.workspace.getConfiguration(BRANDING.CONFIG_SECTION);
+    const provider = config.get<string>('provider', 'gemini');
+    if (provider === 'ollama') {
+      return true;
+    }
     return this._context.workspaceState.get<boolean>('fixora.hasApiKey', false);
   }
 
@@ -391,13 +558,13 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
   }
 
   /**
-   * Generate CSP-compliant HTML for the Webview.
+   * Generate CSP-compliant HTML for Revion Webview.
    */
   public getHtmlForWebview(
     webview: vscode.Webview,
     isConfigured: boolean,
     activeModel: string,
-    learningMode: boolean,
+    _learningMode: boolean,
     nonceOverride?: string
   ): string {
     const styleUri = webview.asWebviewUri(
@@ -406,10 +573,6 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
     const scriptUri = webview.asWebviewUri(
       vscode.Uri.joinPath(this._extensionUri, 'media', 'dashboard.js')
     );
-    const iconUri = webview.asWebviewUri(
-      vscode.Uri.joinPath(this._extensionUri, 'media', 'icon.png')
-    );
-
     const nonce = nonceOverride || getNonce();
 
     return `<!DOCTYPE html>
@@ -419,163 +582,211 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
   <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src ${webview.cspSource} 'unsafe-inline'; script-src 'nonce-${nonce}'; img-src ${webview.cspSource} https: data:; font-src ${webview.cspSource};">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <link href="${styleUri}" rel="stylesheet">
-  <title>Fixora AI</title>
+  <title>${BRANDING.PRODUCT_NAME}</title>
 </head>
 <body>
-  <!-- Brand Header -->
-  <div class="header-container">
-    <img src="${iconUri}" alt="Fixora AI Logo" class="logo-badge" />
-    <div>
-      <h1 class="header-title">Fixora AI</h1>
-      <p class="tagline">Find Bugs. Understand Errors. Fix Code. Build Better.</p>
+  <div class="app-container">
+    <!-- Progress Indicator Bar -->
+    <div id="progress-bar" class="progress-bar-container">
+      <div class="progress-bar-active" style="display: none;"></div>
     </div>
-  </div>
 
-  <!-- API Key Missing Notice -->
-  <div id="key-notice" style="display: ${isConfigured ? 'none' : 'block'}; margin-bottom: 14px; padding: 10px; background: rgba(245, 158, 11, 0.15); border: 1px solid var(--severity-warning); border-radius: 6px; font-size: 0.82em;">
-    <strong>API Key Required:</strong> Configure your Gemini API key to activate AI analysis and error explanations.
-    <div style="margin-top: 8px;">
-      <button id="btn-configure-key" class="fixora-btn" style="width: 100%; font-size: 0.82em; padding: 4px 8px;">Configure Gemini API Key</button>
-    </div>
-  </div>
-
-  <!-- Live Editor Features & Toggles -->
-  <div class="action-section feature-controls-section">
-    <div class="section-heading">Live Editor Features</div>
-    <div class="toggle-cards-list">
-      <div class="toggle-card">
-        <div class="toggle-info">
-          <div class="toggle-title">
-            <span class="toggle-icon">⚡</span>
-            <span>Error Lens</span>
-          </div>
-          <div class="toggle-subtitle">Inline error & warning diagnostics</div>
-        </div>
-        <label class="switch">
-          <input type="checkbox" id="toggle-error-lens" checked>
-          <span class="slider round"></span>
-        </label>
+    <!-- Header Bar -->
+    <header class="header-bar">
+      <div class="brand-section">
+        <svg class="brand-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M5.5 3.5h7a4.5 4.5 0 0 1 0 9h-7v8" />
+          <path d="M12 12.5l6.5 8" />
+          <path d="M16 4.5l3.5 3.5-3.5 3.5" stroke-width="1.8" />
+        </svg>
+        <span class="brand-name">${BRANDING.PRODUCT_NAME}</span>
       </div>
 
-      <div class="toggle-card">
-        <div class="toggle-info">
-          <div class="toggle-title">
-            <span class="toggle-icon">🧠</span>
-            <span>Code Complexity Lens</span>
-          </div>
-          <div class="toggle-subtitle">Live CC on right side & auto-refactor</div>
+      <div class="header-actions">
+        <div id="model-pill" class="model-pill" title="Click to switch AI model">
+          <span id="status-dot" class="status-dot ${isConfigured ? '' : 'disconnected'}"></span>
+          <span id="model-pill-text">${activeModel || 'Gemini 2.0 Flash'}</span>
         </div>
-        <label class="switch">
-          <input type="checkbox" id="toggle-complexity-lens" checked>
-          <span class="slider round"></span>
-        </label>
+        <button id="btn-settings" class="icon-btn" title="Settings">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="3"></circle>
+            <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+          </svg>
+        </button>
+        <button id="btn-clear-all" class="icon-btn" title="Clear Diagnostics">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <polyline points="3 6 5 6 21 6"></polyline>
+            <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+          </svg>
+        </button>
+      </div>
+    </header>
+
+    <!-- Navigation Tabs -->
+    <nav class="segmented-nav" aria-label="Revion Navigation">
+      <button class="nav-tab active" data-tab="tab-assistant">
+        <span>Assistant</span>
+      </button>
+      <button class="nav-tab" data-tab="tab-review">
+        <span>Review</span>
+      </button>
+      <button class="nav-tab" data-tab="tab-issues">
+        <span>Issues</span>
+        <span id="issues-badge" class="nav-badge">0</span>
+      </button>
+      <button class="nav-tab" data-tab="tab-history">
+        <span>History</span>
+      </button>
+    </nav>
+
+    <!-- TAB 1: Assistant -->
+    <main id="tab-assistant" class="tab-panel active">
+      <!-- First-Run Onboarding Banner -->
+      <section id="onboarding-card" class="onboarding-card" style="display: ${isConfigured ? 'none' : 'block'};">
+        <h2 class="onboarding-title">⚡ Welcome to Revion</h2>
+        <p class="onboarding-text">To enable context-aware AI code reviews, connect your Google Gemini API key or switch to Local Ollama.</p>
+        <div class="onboarding-input-group">
+          <input type="password" id="input-api-key" class="onboarding-input" placeholder="AIzaSy... (Gemini API Key)" aria-label="Gemini API Key" />
+          <button id="btn-connect-key" class="btn btn-sm">Connect</button>
+        </div>
+        <div class="onboarding-actions">
+          <button id="btn-use-ollama" class="btn btn-secondary btn-sm">Use Local Ollama (Offline)</button>
+          <button id="btn-try-sample" class="btn btn-secondary btn-sm">Try Sample Code</button>
+        </div>
+      </section>
+
+      <!-- Active File Context Chip -->
+      <div id="context-chip" class="context-chip" style="display: none;">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+          <polyline points="14 2 14 8 20 8"></polyline>
+        </svg>
+        <span id="context-file-name" class="context-file-name">No active file</span>
       </div>
 
-      <div class="toggle-card">
-        <div class="toggle-info">
-          <div class="toggle-title">
-            <span class="toggle-icon">🔍</span>
-            <span>Real-time Linter (ESLint & Style)</span>
-          </div>
-          <div class="toggle-subtitle">Catches syntax & style issues in JS, TS, HTML, CSS, Python as you type</div>
+      <!-- Chat Stream -->
+      <div id="chat-stream" class="chat-stream">
+        <div class="chat-welcome empty-box">
+          <p><strong>Ask Revion about your code.</strong></p>
+          <p style="font-size: 11px; opacity: 0.75;">Select code in your editor to ask questions, audit security, or explore refactoring options.</p>
         </div>
-        <label class="switch">
-          <input type="checkbox" id="toggle-linter" checked>
-          <span class="slider round"></span>
-        </label>
       </div>
 
-      <div class="toggle-card">
-        <div class="toggle-info">
-          <div class="toggle-title">
-            <span class="toggle-icon">✨</span>
-            <span>Prettier Formatter</span>
-          </div>
-          <div class="toggle-subtitle">Auto-healing format on save & run</div>
-        </div>
-        <label class="switch">
-          <input type="checkbox" id="toggle-formatter" checked>
-          <span class="slider round"></span>
-        </label>
+      <!-- Quick Prompt Pills -->
+      <div class="prompt-chips-row">
+        <button class="prompt-chip" data-prompt="Explain this error and how to fix it">Explain Error</button>
+        <button class="prompt-chip" data-prompt="Audit this code for security vulnerabilities">Audit Security</button>
+        <button class="prompt-chip" data-prompt="Suggest a clean refactor for this function">Refactor Code</button>
+        <button class="prompt-chip" data-prompt="Check for performance bottlenecks">Performance</button>
       </div>
-    </div>
 
-    <div class="feature-actions-row">
-      <button id="btn-format-document" class="fixora-btn secondary compact-btn">
-        <svg width="12" height="12" viewBox="0 0 16 16" fill="currentColor">
-          <path d="M14 1a1 1 0 0 1 1 1v12a1 1 0 0 1-1 1H2a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1h12zM2 0a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V2a2 2 0 0 0-2-2H2z"/>
-          <path d="M3 4.5a.5.5 0 0 1 .5-.5h9a.5.5 0 0 1 0 1h-9a.5.5 0 0 1-.5-.5zm0 3a.5.5 0 0 1 .5-.5h5a.5.5 0 0 1 0 1h-5a.5.5 0 0 1-.5-.5zm0 3a.5.5 0 0 1 .5-.5h7a.5.5 0 0 1 0 1h-7a.5.5 0 0 1-.5-.5z"/>
-        </svg>
-        Format Document
-      </button>
-      <button id="btn-complexity-audit" class="fixora-btn secondary compact-btn">
-        <svg width="12" height="12" viewBox="0 0 16 16" fill="currentColor">
-          <path d="M4 11H2v3h2v-3zm5-4H7v7h2V7zm5-5h-2v12h2V2z"/>
-        </svg>
-        Complexity Audit
-      </button>
-    </div>
-  </div>
+      <!-- Prompt Composer -->
+      <div class="composer-box">
+        <textarea id="composer-textarea" class="composer-textarea" placeholder="Ask a question or request a code audit... (Enter to send, Shift+Enter for newline)" rows="1" aria-label="Revion Prompt"></textarea>
+        <div class="composer-footer">
+          <span style="font-size: 10px; color: var(--revion-muted);">Markdown supported</span>
+          <button id="btn-send-message" class="btn btn-sm">Send</button>
+        </div>
+      </div>
+    </main>
 
-  <!-- Quick Actions -->
-  <div class="action-section">
-    <div class="section-heading">AI Actions & Security</div>
-    <div class="button-stack">
-      <button id="btn-review-selection" class="fixora-btn">
-        <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor">
-          <path d="M2 3h12v2H2zm0 4h12v2H2zm0 4h8v2H2z"/>
-        </svg>
-        Review Selected Code
-      </button>
-      <button id="btn-review-file" class="fixora-btn secondary">
-        <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor">
-          <path d="M4 1h6l4 4v9a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1zm5 1v3h3"/>
-        </svg>
-        Review Current File
-      </button>
-      <button id="btn-security-scan" class="fixora-btn secondary">
-        <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor">
-          <path d="M8 1L2 3.5v5c0 3.7 2.6 6.8 6 7.5 3.4-.7 6-3.8 6-7.5v-5L8 1z"/>
-        </svg>
-        Security Scan
-      </button>
-      <button id="btn-review-workspace" class="fixora-btn secondary">
-        <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor">
-          <path d="M1 3.5A1.5 1.5 0 0 1 2.5 2h3.764a1.5 1.5 0 0 1 1.06.44l1.236 1.236A.5.5 0 0 0 8.914 4H13.5A1.5 1.5 0 0 1 15 5.5v7a1.5 1.5 0 0 1-1.5 1.5h-11A1.5 1.5 0 0 1 1 12.5v-9z"/>
-        </svg>
-        Review Workspace
-      </button>
-      <button id="btn-review-git" class="fixora-btn secondary">
-        <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor">
-          <path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.012 8.012 0 0 0 16 8c0-4.42-3.58-8-8-8z"/>
-        </svg>
-        Review Git Changes
-      </button>
-      <button id="btn-export-report" class="fixora-btn secondary">
-        <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor">
-          <path d="M.5 9.9a.5.5 0 0 1 .5.5v2.5a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-2.5a.5.5 0 0 1 1 0v2.5a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2v-2.5a.5.5 0 0 1 .5-.5z"/>
-          <path d="M7.646 11.854a.5.5 0 0 0 .708 0l3-3a.5.5 0 0 0-.708-.708L8.5 10.293V1.5a.5.5 0 0 0-1 0v8.793L5.354 8.146a.5.5 0 1 0-.708.708l3 3z"/>
-        </svg>
-        Export HTML Report
-      </button>
-      <button id="btn-install-hook" class="fixora-btn secondary">
-        <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor">
-          <path d="M8 1a2 2 0 0 1 2 2v2H6V3a2 2 0 0 1 2-2zm3 4V3a3 3 0 0 0-6 0v2a2 2 0 0 0-2 2v5a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2z"/>
-        </svg>
-        Install Git Pre-Commit Guard
-      </button>
-    </div>
-  </div>
+    <!-- TAB 2: Review (Audits & Toggles) -->
+    <main id="tab-review" class="tab-panel">
+      <!-- Real-time Engines Card -->
+      <div class="feature-card">
+        <div class="feature-heading">Real-Time Native Engines</div>
+        
+        <div class="toggle-row">
+          <div class="toggle-label">
+            <span class="toggle-name">Error Lens</span>
+            <span class="toggle-desc">Inline diagnostic text & line highlights</span>
+          </div>
+          <label class="switch" aria-label="Toggle Error Lens">
+            <input type="checkbox" id="toggle-error-lens" checked />
+            <span class="slider"></span>
+          </label>
+        </div>
 
-  <!-- Active Status / Progress Indicator -->
-  <div id="status-container"></div>
+        <div class="toggle-row">
+          <div class="toggle-label">
+            <span class="toggle-name">Complexity Lens</span>
+            <span class="toggle-desc">Live ⚡ CC badges & offline refactorings</span>
+          </div>
+          <label class="switch" aria-label="Toggle Complexity Lens">
+            <input type="checkbox" id="toggle-complexity-lens" checked />
+            <span class="slider"></span>
+          </label>
+        </div>
 
-  <!-- Findings List -->
-  <div class="action-section">
-    <div class="section-heading">Active Findings</div>
-    <div id="findings-list" class="findings-container">
-      <div class="empty-box">No active findings. Run a review on your code to see detailed analysis.</div>
-    </div>
+        <div class="toggle-row">
+          <div class="toggle-label">
+            <span class="toggle-name">Real-Time Linter</span>
+            <span class="toggle-desc">As-you-type checks for JS, TS, Py, HTML, CSS</span>
+          </div>
+          <label class="switch" aria-label="Toggle Real-time Linter">
+            <input type="checkbox" id="toggle-linter" checked />
+            <span class="slider"></span>
+          </label>
+        </div>
+
+        <div class="toggle-row">
+          <div class="toggle-label">
+            <span class="toggle-name">Prettier Formatter</span>
+            <span class="toggle-desc">Auto-formatting & silent syntax healing</span>
+          </div>
+          <label class="switch" aria-label="Toggle Prettier Formatter">
+            <input type="checkbox" id="toggle-formatter" checked />
+            <span class="slider"></span>
+          </label>
+        </div>
+      </div>
+
+      <!-- Scope Action Buttons Grid -->
+      <div class="feature-heading">Audits & Workflows</div>
+      <div class="actions-grid">
+        <button id="btn-review-file" class="btn btn-secondary">Review Current File</button>
+        <button id="btn-review-selection" class="btn btn-secondary">Review Selection</button>
+        <button id="btn-security-scan" class="btn btn-secondary">Security Audit (OWASP)</button>
+        <button id="btn-complexity-audit" class="btn btn-secondary">Code Health Audit</button>
+        <button id="btn-review-workspace" class="btn btn-secondary">Review Workspace</button>
+        <button id="btn-review-git" class="btn btn-secondary">Review Git Changes</button>
+        <button id="btn-explain-terminal" class="btn btn-secondary">Explain Terminal Error</button>
+        <button id="btn-format-document" class="btn btn-secondary">Format Document</button>
+      </div>
+
+      <div style="display: flex; gap: 6px; margin-top: 6px;">
+        <button id="btn-install-hook" class="btn btn-secondary btn-full btn-sm">Install Pre-Commit Guard</button>
+        <button id="btn-export-report" class="btn btn-secondary btn-full btn-sm">Export HTML Report</button>
+      </div>
+    </main>
+
+    <!-- TAB 3: Issues (Findings Inspector) -->
+    <main id="tab-issues" class="tab-panel">
+      <div class="findings-filter-bar">
+        <button class="filter-chip active" data-severity="all">All</button>
+        <button class="filter-chip" data-severity="critical">Critical</button>
+        <button class="filter-chip" data-severity="warning">Warnings</button>
+        <button class="filter-chip" data-severity="info">Hints</button>
+      </div>
+
+      <div id="findings-list">
+        <div class="empty-box">
+          <div>✓ No active issues detected</div>
+          <div style="font-size: 10.5px; margin-top: 4px; opacity: 0.7;">Run an audit from the Review tab to scan your code.</div>
+        </div>
+      </div>
+    </main>
+
+    <!-- TAB 4: History -->
+    <main id="tab-history" class="tab-panel">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+        <span class="feature-heading" style="margin-bottom: 0;">Past Review Runs</span>
+        <button id="btn-clear-history" class="btn btn-secondary btn-sm" style="font-size: 10px; padding: 2px 6px;">Clear</button>
+      </div>
+      <div id="history-list">
+        <div class="empty-box">No past review runs recorded yet.</div>
+      </div>
+    </main>
   </div>
 
   <script nonce="${nonce}" src="${scriptUri}"></script>

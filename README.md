@@ -1,25 +1,26 @@
-# Fixora AI — All-in-One AI Code Reviewer, Error Lens, Formatter & Linter
+# Revion — Intelligent Code Review & Debugging
 
 <p align="center">
-  <img src="media/icon.png" width="128" height="128" alt="Fixora AI Logo" />
+  <img src="media/icon.png" width="128" height="128" alt="Revion Logo" />
 </p>
 
 <p align="center">
-  <strong>Find Bugs. Understand Errors. Fix Code. Build Better.</strong>
+  <strong>Intelligent Code Review & Debugging Assistant</strong><br>
+  <em>Find Bugs. Understand Errors. Fix Code. Build Better.</em>
 </p>
 
 <p align="center">
-  <a href="https://marketplace.visualstudio.com/items?itemName=FixoraFoundation.fixora-ai"><img src="https://img.shields.io/badge/VS%20Code%20Marketplace-Fixora%20AI-007ACC.svg?style=for-the-badge&logo=visual-studio-code" alt="Visual Studio Marketplace" /></a>
+  <a href="https://marketplace.visualstudio.com/items?itemName=FixoraFoundation.fixora-ai"><img src="https://img.shields.io/badge/VS%20Code%20Marketplace-Revion%20(Fixora%20AI)-007ACC.svg?style=for-the-badge&logo=visual-studio-code" alt="Visual Studio Marketplace" /></a>
   <a href="https://marketplace.visualstudio.com/items?itemName=FixoraFoundation.fixora-ai"><img src="https://img.shields.io/badge/Status-Officially%20Published-brightgreen.svg?style=for-the-badge" alt="Published Status" /></a>
-  <a href="https://github.com/krishna-Deshmukh13/Fixora-AI---Extension"><img src="https://img.shields.io/badge/Tests-162%20Passed-success.svg?style=for-the-badge" alt="Tests" /></a>
+  <a href="https://github.com/krishna-Deshmukh13/Fixora-AI---Extension"><img src="https://img.shields.io/badge/Tests-174%20Passed%20(34%20Suites)-success.svg?style=for-the-badge" alt="Tests" /></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-blue.svg?style=for-the-badge" alt="License" /></a>
 </p>
 
 ---
 
 > ### 🚀 Available Now on the Visual Studio Code Marketplace!
-> **Fixora AI is officially live and available for free to developers worldwide.**  
-> Install directly inside VS Code by searching for **`Fixora AI`** in your Extensions panel (`Ctrl + Shift + X`), or run:
+> **Revion (published as Fixora AI) is officially live and available for free to developers worldwide.**  
+> Install directly inside VS Code by searching for **`Revion`** or **`Fixora AI`** in your Extensions panel (`Ctrl + Shift + X`), or run:
 > ```bash
 > code --install-extension FixoraFoundation.fixora-ai
 > ```
@@ -30,10 +31,10 @@
 ## 📸 Live Product Showcase
 
 <div align="center">
-  <h3>⚡ Fixora AI Live In Action (Visual Studio Code)</h3>
+  <h3>⚡ Revion Live In Action (Visual Studio Code)</h3>
   <p><em>Real-world demonstration inside a live full-stack codebase (<code>AirBnb_Clone</code>), featuring the unified Activity Bar control center, inline diagnostic decorations, and status bar monitor.</em></p>
   <a href="media/fixora-vscode-live-ui.png" target="_blank">
-    <img src="media/fixora-vscode-live-ui.png" alt="Fixora AI Live In-Editor Experience" width="100%" style="max-width: 960px; border-radius: 8px; box-shadow: 0 4px 20px rgba(0,0,0,0.3);" />
+    <img src="media/fixora-vscode-live-ui.png" alt="Revion Live In-Editor Experience" width="100%" style="max-width: 960px; border-radius: 8px; box-shadow: 0 4px 20px rgba(0,0,0,0.3);" />
   </a>
   <p><sub><em>(Click any image to view in full 2K Ultra HD resolution)</em></sub></p>
 </div>
@@ -46,7 +47,7 @@
       <td width="36%" align="center" valign="top" style="padding: 10px; border: none;">
         <h4>🎛️ Unified Control Center</h4>
         <a href="media/fixora-sidebar-panel.png" target="_blank">
-          <img src="media/fixora-sidebar-panel.png" alt="Fixora AI Sidebar Panel" width="100%" style="max-width: 320px; border-radius: 6px; box-shadow: 0 2px 12px rgba(0,0,0,0.25);" />
+          <img src="media/fixora-sidebar-panel.png" alt="Revion Sidebar Panel" width="100%" style="max-width: 320px; border-radius: 6px; box-shadow: 0 2px 12px rgba(0,0,0,0.25);" />
         </a>
         <br>
         <p align="left">
@@ -63,7 +64,7 @@
       <td width="64%" align="center" valign="top" style="padding: 10px; border: none;">
         <h4>🔍 VS Code Marketplace Discoverability</h4>
         <a href="media/vscode-search-highlight.png" target="_blank">
-          <img src="media/vscode-search-highlight.png" alt="Fixora AI in VS Code Extensions Marketplace" width="100%" style="max-width: 520px; border-radius: 6px; box-shadow: 0 2px 12px rgba(0,0,0,0.25);" />
+          <img src="media/vscode-search-highlight.png" alt="Revion in VS Code Extensions Marketplace" width="100%" style="max-width: 520px; border-radius: 6px; box-shadow: 0 2px 12px rgba(0,0,0,0.25);" />
         </a>
         <br>
         <p align="center">
@@ -76,7 +77,7 @@
         </a>
         <br>
         <p align="center">
-          <sub><strong>Verified Publisher Dashboard:</strong> 14 acquisitions, 100% conversion funnel, and active developer adoption.</sub>
+          <sub><strong>Verified Publisher Dashboard:</strong> Active developer adoption and verified publishing pipeline.</sub>
         </p>
       </td>
     </tr>
@@ -87,15 +88,15 @@
 
 ## 📌 Executive Summary
 
-**Fixora AI** is a production-grade developer extension for Visual Studio Code authored from scratch by **Krishna Deshmukh**. It addresses the friction of juggling multiple heavy extensions (Error Lens, ESLint, Prettier, CodeMetrics, and AI assistants) by unifying them into a single, cohesive, high-performance developer tool.
+**Revion** is a production-grade developer tool for Visual Studio Code authored from scratch by **Krishna Deshmukh**. It eliminates the friction of juggling multiple separate extensions (Error Lens, ESLint, Prettier, CodeMetrics, and AI assistants) by unifying them into a single, cohesive, high-performance developer workspace.
 
-Built with strict **TypeScript**, **VS Code Extension API**, and local AST parsing, Fixora AI features **4 offline core engines** that run with zero internet latency, combined with context-aware AI review powered by **Google Gemini** and local **Ollama** models.
+Built with strict **TypeScript**, **VS Code Extension API**, and local AST parsing, Revion features **4 offline core engines** that run with zero internet latency, combined with context-aware AI code review powered by **Google Gemini** (Gemini 2.0 Flash) and local **Ollama** models.
 
 ---
 
 ## 🏗️ Architecture & Working Model
 
-Fixora AI operates through a responsive event-driven pipeline that coordinates real-time editor events with static analysis and AI reasoning engines:
+Revion operates through a responsive event-driven pipeline coordinating real-time editor events with static analysis and AI reasoning engines:
 
 ```mermaid
 flowchart TD
@@ -114,7 +115,7 @@ flowchart TD
 
     subgraph AICloud ["Context-Aware AI Layer"]
         SecretScrubber[Client-Side Privacy Scrubber\nAPI Keys / Secrets Masked]
-        Gemini[Google Gemini API / Ollama Local\n2.5 Flash / 2.5 Pro]
+        Gemini[Google Gemini API / Ollama Local\n2.0 Flash / 1.5 Pro]
         ExplainEngine[7-Question Root Cause Explainer]
     end
 
@@ -165,7 +166,7 @@ flowchart TD
   - `⚡ CC: >10 (High Complexity)` — Red
 - **Interactive Hover Cards**: Hovering reveals decision branch points, maintainability index, and a low-complexity alternative.
 - **Instant Offline Refactoring (`Ctrl + .`)**: Press `Ctrl + .` on any complex function to select:
-  > `💡 Fixora AI: Replace with low-complexity alternative code (Offline Refactor: CC 14 ➔ 2)`  
+  > `💡 Revion: Replace with low-complexity alternative code (Offline Refactor: CC 14 ➔ 2)`  
   Replaces nested condition ladders with early exit guard clauses and $O(1)$ dictionary lookup tables completely offline.
 
 ### 3. 🔍 Real-Time Multi-Language Linter (As-You-Type)
@@ -184,7 +185,7 @@ Validates code on the fly without waiting for external server responses:
 
 ## 🤖 Context-Aware AI Review & Debugging
 
-When you need high-level architectural insight, Fixora AI taps into **Google Gemini** or local **Ollama**:
+When you need high-level architectural insight, Revion taps into **Google Gemini** or local **Ollama**:
 - **Selection & File Review**: Deep code audits highlighting security flaws, memory leaks, and performance bottlenecks.
 - **OWASP Security Audit**: Scans for SQL injection, Cross-Site Scripting (XSS), command injection, and insecure deserialization.
 - **7-Question Error Explanations**: Answers *What happened?*, *Why did it happen?*, *Where is it?*, *What is the root cause?*, and *How do I fix it?* with verified copyable code.
@@ -195,27 +196,27 @@ When you need high-level architectural insight, Fixora AI taps into **Google Gem
 
 ## 🎛️ Interactive Sidebar Dashboard
 
-The activity bar panel provides a clean, distraction-free control center:
+The activity bar panel provides a clean, distraction-free control center with tabbed navigation:
 
 ```
 ┌──────────────────────────────────────────────┐
-│  Fixora AI                                   │
-│  Find Bugs. Understand Errors. Fix Code.     │
+│  Revion                               [⚙]    │
+│  Assistant | Review | Issues | History       │
 ├──────────────────────────────────────────────┤
-│  Live Editor Features                        │
+│  Live Editor Engines                         │
 │  ⚡ Error Lens               [ ON  |  OFF ]   │
 │  🧠 Code Complexity Lens     [ ON  |  OFF ]   │
-│  🔍 Real-time Linter         [ ON  |  OFF ]   │
+│  🔍 Real-Time Linter         [ ON  |  OFF ]   │
 │  ✨ Prettier Formatter       [ ON  |  OFF ]   │
-│                                              │
-│  [ Format Document ]   [ Complexity Audit ]  │
 ├──────────────────────────────────────────────┤
-│  AI Actions & Security                       │
+│  Audits & Workflows                          │
 │  • Review Selected Code                      │
 │  • Review Current File                       │
-│  • Security Scan (OWASP Top 10)              │
+│  • Security Audit (OWASP Top 10)             │
+│  • Code Health Audit (Complexity & Dups)     │
 │  • Review Workspace                          │
 │  • Review Git Changes                        │
+│  • Explain Terminal Error & Stack Trace      │
 │  • Install Git Pre-Commit Guard              │
 │  • Export HTML Audit Report                  │
 └──────────────────────────────────────────────┘
@@ -224,6 +225,8 @@ The activity bar panel provides a clean, distraction-free control center:
 ---
 
 ## ⌨️ Command & Shortcut Reference
+
+All commands are accessible from the Command Palette (`Ctrl + Shift + P`) under the **Revion** category:
 
 | Command | Identifier | Shortcut |
 | :--- | :--- | :--- |
@@ -241,6 +244,8 @@ The activity bar panel provides a clean, distraction-free control center:
 | **Review Active File** | `fixora.reviewFile` | — |
 | **Review Workspace** | `fixora.reviewWorkspace` | — |
 | **Review Git Changes** | `fixora.reviewGit` | — |
+| **Code Health Audit** | `fixora.qualityReview` | — |
+| **Explain Terminal Error** | `fixora.explainTerminal` | — |
 | **Export HTML Report** | `fixora.exportReport` | — |
 | **Install Pre-Commit Hook** | `fixora.installGitHook` | — |
 
@@ -248,16 +253,16 @@ The activity bar panel provides a clean, distraction-free control center:
 
 ## 🧪 Rigorous Quality & Verification
 
-Fixora AI has been built and tested with industry-standard test-driven engineering:
-- **30 Comprehensive Test Suites**
-- **162 Passing Unit Tests** with 100% pass rate
-- **Zero-Dependency VSIX Packaging**: Bundled via Esbuild into an ultra-lean 1.58 MB binary.
+Revion has been built and tested with industry-standard test-driven engineering:
+- **34 Comprehensive Test Suites**
+- **174 Passing Unit Tests** with 100% pass rate
+- **Zero-Dependency VSIX Packaging**: Bundled via Esbuild into an ultra-lean binary (~3.6 MB with zero sourcemap leakage).
 
 To run the test suite locally:
 ```bash
 npm install
 npm run compile
-npm run test:unit
+npm test
 ```
 
 ---
@@ -274,4 +279,4 @@ npm run test:unit
 
 ## 📄 License
 
-Fixora AI is open-source software licensed under the [MIT License](LICENSE).
+Revion is open-source software licensed under the [MIT License](LICENSE).

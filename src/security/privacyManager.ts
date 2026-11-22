@@ -1,6 +1,7 @@
 import * as vscode from 'vscode';
 import { FileUtils } from '../utils/fileUtils';
 import { Logger } from '../utils/logger';
+import { BRANDING } from '../constants/branding';
 
 /**
  * Manages user privacy, credential redaction, workspace trust, and network transmission boundaries.
@@ -44,7 +45,7 @@ export class PrivacyManager {
     }
 
     const choice = await vscode.window.showInformationMessage(
-      'Fixora AI Privacy Notice: Code reviews and error explanations send code snippets directly to Google Gemini API using your configured API key over secure HTTPS. No telemetry or training data is retained by Fixora AI.',
+      `${BRANDING.PRODUCT_NAME} Privacy Notice: Code reviews and error explanations send code snippets directly to Google Gemini API using your configured API key over secure HTTPS. No telemetry or training data is retained by ${BRANDING.PRODUCT_NAME}.`,
       'I Understand',
       'Learn More'
     );

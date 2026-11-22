@@ -57,11 +57,11 @@ describe('ReportGenerator', () => {
 
     const html = writtenContent as string;
     expect(html).toContain('<!DOCTYPE html>');
-    expect(html).toContain('Fixora AI Code Quality Audit Report');
+    expect(html).toContain('Revion Code Quality Audit Report');
     expect(html).toContain('Dangerous SQL &lt;script&gt;alert(1)&lt;/script&gt;');
     expect(html).toContain('&quot;rawInput&quot; &amp; parameter mismatch');
     expect(html).toContain('CRITICAL');
-    expect(html).toContain('Fixora.foundation');
+    expect(html).toContain('FixoraFoundation');
 
     expect(vscode.env.openExternal).toHaveBeenCalled();
     expect(vscode.window.showInformationMessage).toHaveBeenCalledWith(

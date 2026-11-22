@@ -169,6 +169,7 @@ export const window = {
   showQuickPick: async () => undefined,
   activeTextEditor: undefined,
   onDidChangeActiveTextEditor: () => ({ dispose: () => {} }),
+  onDidChangeTextEditorSelection: () => ({ dispose: () => {} }),
   withProgress: async (_options: any, task: (progress: any, token: any) => Promise<any>) => {
     const progress = { report: () => {} };
     const token = { isCancellationRequested: false, onCancellationRequested: () => ({ dispose: () => {} }) };
