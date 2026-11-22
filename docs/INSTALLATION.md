@@ -1,6 +1,6 @@
-# Fixora AI Installation Guide
+# Revion Installation Guide (Fixora AI)
 
-This guide walks you through installing and configuring **Fixora AI** on Visual Studio Code.
+This guide walks you through installing and configuring **Revion** (Marketplace ID: `FixoraFoundation.fixora-ai`) on Visual Studio Code.
 
 ---
 
@@ -10,48 +10,54 @@ This guide walks you through installing and configuring **Fixora AI** on Visual 
 
 1. Open **Visual Studio Code**.
 2. Open the Extensions panel by pressing `Ctrl + Shift + X` (or `Cmd + Shift + X` on macOS).
-3. In the search bar at the top, type **`Fixora AI`**.
-4. In the search results, click the **Install** button on the Fixora AI extension card.
-5. Once installation finishes, you will see the Fixora AI icon appear in the Activity Bar on the left side of your editor.
+3. In the search bar at the top, type **`Revion`** or **`Fixora AI`**.
+4. Click the **Install** button on the Revion extension card.
+5. Once installation finishes, you will see the Revion brand icon appear in the Activity Bar on the left side of your editor.
 
 ---
 
 ### Method 2: Install from Offline VSIX Package
 
-If you have downloaded the `fixora-ai-0.1.0.vsix` file:
+If you have downloaded the production `.vsix` file:
 
 #### Option A: Using the VS Code GUI
 1. Open Visual Studio Code.
 2. Press `Ctrl + Shift + X` to open the Extensions view.
 3. Click the **`...`** (Views and More Actions) menu in the top right corner of the Extensions panel.
 4. Select **Install from VSIX...**.
-5. Browse and select `fixora-ai-0.1.0.vsix`.
+5. Browse and select the `.vsix` file.
 6. Click **Install**.
 
 #### Option B: Using the Command Line
 Open your terminal (PowerShell, Command Prompt, or bash) and run:
-```powershell
-code --install-extension path/to/fixora-ai-0.1.0.vsix
+```bash
+code --install-extension fixora-ai-0.2.0.vsix
 ```
 
 ---
 
-## Configuring Your Google Gemini API Key
+## Configuring Your AI Provider
 
-Fixora AI uses Google Gemini to review code, detect bugs, and explain errors. Setting up your API key takes under 2 minutes:
-
+### Option 1: Google Gemini API (Recommended)
 1. **Obtain your Free API Key**:
    - Visit [Google AI Studio](https://aistudio.google.com/app/apikey).
    - Sign in with your Google account.
-   - Click **Create API Key** and copy the generated key string (it starts with `AIza...`).
+   - Click **Create API Key** and copy the generated key string (starts with `AIza...`).
 
-2. **Store Key in Fixora AI**:
+2. **Store Key in Revion**:
    - Open Visual Studio Code.
-   - Press `Ctrl + Shift + P` (or `Cmd + Shift + P` on macOS) to open the Command Palette.
-   - Type and select: **`Fixora AI: Configure Gemini API Key`**.
+   - Press `Ctrl + Shift + P` to open the Command Palette.
+   - Type and select: **`Revion: Configure Gemini API Key`**.
    - Paste your API key into the prompt and press `Enter`.
+   - *Security Note: Your API key is stored securely in your operating system's keychain using VS Code's `SecretStorage` API.*
 
-> **Security Note**: Your API key is stored securely in your operating system's credential manager using VS Code's `SecretStorage` API. It is never logged, exposed to untrusted code, or committed to source control.
+### Option 2: Local Ollama (100% Offline)
+1. Install [Ollama](https://ollama.com) on your system.
+2. Pull a coding model:
+   ```bash
+   ollama run codellama
+   ```
+3. In Revion's sidebar or settings, switch provider to **Ollama**. No API key or internet access required.
 
 ---
 

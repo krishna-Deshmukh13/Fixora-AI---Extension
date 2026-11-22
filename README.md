@@ -12,7 +12,7 @@
 <p align="center">
   <a href="https://marketplace.visualstudio.com/items?itemName=FixoraFoundation.fixora-ai"><img src="https://img.shields.io/badge/VS%20Code%20Marketplace-Revion%20(Fixora%20AI)-007ACC.svg?style=for-the-badge&logo=visual-studio-code" alt="Visual Studio Marketplace" /></a>
   <a href="https://marketplace.visualstudio.com/items?itemName=FixoraFoundation.fixora-ai"><img src="https://img.shields.io/badge/Status-Officially%20Published-brightgreen.svg?style=for-the-badge" alt="Published Status" /></a>
-  <a href="https://github.com/krishna-Deshmukh13/Fixora-AI---Extension"><img src="https://img.shields.io/badge/Tests-174%20Passed%20(34%20Suites)-success.svg?style=for-the-badge" alt="Tests" /></a>
+  <a href="https://github.com/krishna-Deshmukh13/Fixora-AI---Extension"><img src="https://img.shields.io/badge/Tests-199%20Passed%20(39%20Suites)-success.svg?style=for-the-badge" alt="Tests" /></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-blue.svg?style=for-the-badge" alt="License" /></a>
 </p>
 
@@ -183,10 +183,14 @@ Validates code on the fly without waiting for external server responses:
 
 ---
 
-## 🤖 Context-Aware AI Review & Debugging
+## 🤖 Advanced AI Developer Workflows (Revion Intelligence)
 
-When you need high-level architectural insight, Revion taps into **Google Gemini** or local **Ollama**:
-- **Selection & File Review**: Deep code audits highlighting security flaws, memory leaks, and performance bottlenecks.
+When you need high-level architectural insight, Revion taps into **Google Gemini** (Gemini 2.0 Flash) or local **Ollama** models:
+- **Interactive Context-Aware Chat**: Real-time streaming conversation panel with automatic context injection (active editor selection, surrounding lines, Problems panel diagnostics, and `@file` workspace references).
+- **GitHub Pull Request Review**: Reviews open PRs directly inside VS Code by fetching unified diffs via the GitHub API, attaching findings to modified lines, and providing safe comment preview before posting.
+- **Dependency Vulnerability Auditor**: Scans `package.json` and `requirements.txt` for known high-risk CVEs (Log4Shell, Prototype Pollution, SSRF, JWT RCE, Open Redirect) with evidence-backed remediation advice.
+- **Automated Unit Test Generator**: Detects your project's test framework (Vitest, Jest, Pytest, JUnit) and synthesizes high-coverage unit tests with preview in a dedicated editor tab.
+- **Workspace Health Dashboard**: Computes an objective quality score (0–100) based on diagnostic distribution, Cyclomatic Complexity averages, and hotspot functions without fabricated trends.
 - **OWASP Security Audit**: Scans for SQL injection, Cross-Site Scripting (XSS), command injection, and insecure deserialization.
 - **7-Question Error Explanations**: Answers *What happened?*, *Why did it happen?*, *Where is it?*, *What is the root cause?*, and *How do I fix it?* with verified copyable code.
 - **Atomic Diff Previews**: Inspect side-by-side visual diffs before applying any change. Fixes are applied cleanly through VS Code's `WorkspaceEdit` with zero full-file overwrites.
@@ -212,6 +216,10 @@ The activity bar panel provides a clean, distraction-free control center with ta
 │  Audits & Workflows                          │
 │  • Review Selected Code                      │
 │  • Review Current File                       │
+│  • Review GitHub Pull Request                │
+│  • Generate Unit Tests                       │
+│  • Audit Dependencies (CVE Checker)          │
+│  • Workspace Health Dashboard                │
 │  • Security Audit (OWASP Top 10)             │
 │  • Code Health Audit (Complexity & Dups)     │
 │  • Review Workspace                          │
@@ -237,6 +245,10 @@ All commands are accessible from the Command Palette (`Ctrl + Shift + P`) under 
 | **Jump to Previous Diagnostic** | `fixora.previousDiagnostic` | `Shift+Alt+F8` |
 | **Format Document** | `fixora.formatDocument` | `Shift+Alt+F` |
 | **Format Selection** | `fixora.formatSelection` | `Ctrl+K Ctrl+F` |
+| **Generate Unit Tests** | `fixora.generateTests` | — |
+| **Review GitHub Pull Request** | `fixora.reviewPullRequest` | — |
+| **Audit Dependencies** | `fixora.auditDependencies` | — |
+| **Workspace Health Dashboard** | `fixora.workspaceHealth` | — |
 | **Toggle Complexity Lens** | `fixora.toggleComplexityLens` | — |
 | **Toggle Real-time Linter** | `fixora.toggleLinter` | — |
 | **Toggle Prettier Formatter** | `fixora.toggleFormatter` | — |
@@ -254,8 +266,8 @@ All commands are accessible from the Command Palette (`Ctrl + Shift + P`) under 
 ## 🧪 Rigorous Quality & Verification
 
 Revion has been built and tested with industry-standard test-driven engineering:
-- **34 Comprehensive Test Suites**
-- **174 Passing Unit Tests** with 100% pass rate
+- **39 Comprehensive Test Suites**
+- **199 Passing Unit Tests** with 100% pass rate
 - **Zero-Dependency VSIX Packaging**: Bundled via Esbuild into an ultra-lean binary (~3.6 MB with zero sourcemap leakage).
 
 To run the test suite locally:

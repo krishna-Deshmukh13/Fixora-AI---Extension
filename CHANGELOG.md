@@ -1,6 +1,36 @@
 # Changelog
 
-All notable changes to the "Fixora AI" extension are documented in this file.
+All notable changes to the "Fixora AI" (Revion) extension are documented in this file.
+
+---
+
+## [0.2.0] - 2026-11-22
+
+### Major Architecture & Intelligence Rebuild (Revion Professional)
+
+#### 1. Professional Brand & UI Rebuild
+- **Revion Working Identity**: Modern, minimal vector geometry brand symbol optimized for Activity Bar and 512px Marketplace display.
+- **VS Code Native Design System**: Rebuilt UI utilizing native theme variables (`--vscode-editor-background`, `--vscode-foreground`, etc.) eliminating generic templates.
+- **Responsive Sidebar Architecture**: Cohesive tabbed layout separating Assistant Chat, Review Controls, Live Findings, and clickable History records.
+
+#### 2. Advanced AI Developer Workflows
+- **Context-Aware AI Chat**: Streaming chat panel with active editor snippet injection, surrounding line context, active Problems panel diagnostics, and `@file` mentions.
+- **GitHub Pull Request Review**: Direct PR review inside VS Code with GitHub authentication, unified diff retrieval, inline review findings, and user-confirmed review comments.
+- **Dependency Vulnerability Auditor**: Automated heuristic dependency scanner for `package.json` and `requirements.txt` detecting high-profile CVEs (Log4Shell, Prototype Pollution, SSRF, JWT RCE, Open Redirect).
+- **Automated Unit Test Generator**: Framework-aware test synthesis (Vitest, Jest, Pytest, JUnit) with safe preview in untitled editors.
+- **Workspace Health Dashboard**: Objective quality score (0–100) based on diagnostic distribution, Cyclomatic Complexity averages, and hotspot functions without fabricated trends.
+
+#### 3. Core Engine Hardening & Performance
+- **12-Language Real-Time Linter**: Expanded coverage to JS, TS, JSX, TSX, Python, Java, C, C++, HTML, CSS/SCSS/LESS, PHP, and SQL with debouncing and obsolete run cancellation.
+- **Java Static Analysis Adapter**: Integrated javac / Checkstyle `-Xlint:all` compiler adapter.
+- **Safe Patch Applicator**: Validates source code line content against finding snippet before applying edits; native `vscode.diff` visual comparison.
+- **Prettier Formatter Enhancements**: Added `.prettierignore` detection and configurable `autoHealSyntax` setting guard.
+- **Exponential Backoff**: Automatic retry for HTTP 429 rate limits against Google Gemini API with fallback to local Ollama.
+
+#### 4. Quality & Compatibility
+- **100% Backwards Compatible**: Preserved all 33 `fixora.*` command IDs, `fixora.*` settings, and `fixora.geminiApiKey` SecretStorage.
+- **39 Test Suites / 199 Tests**: Expanded automated test suite with 100% pass rate in Vitest.
+- **Optimized Packaging**: Excluded sourcemaps from release archive, reducing VSIX size to 3.67 MB.
 
 ---
 

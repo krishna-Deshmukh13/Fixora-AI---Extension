@@ -31,6 +31,10 @@ export type WebviewToExtensionMessage =
   | { type: 'runSecurityScan' }
   | { type: 'runPerformanceReview' }
   | { type: 'explainTerminalError' }
+  | { type: 'generateTests' }
+  | { type: 'reviewPullRequest' }
+  | { type: 'auditDependencies' }
+  | { type: 'workspaceHealth' }
   | { type: 'clearDiagnostics' }
   | { type: 'configureApiKey' }
   | { type: 'submitApiKey'; apiKey: string }

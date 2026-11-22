@@ -2,7 +2,7 @@
   "name": "fixora-ai",
   "displayName": "Revion \u2014 Intelligent Code Review & Debugging",
   "description": "Intelligent Code Reviewer, Bug Detector and Debugging Assistant for VS Code. Precision static analysis, native Error Lens, complexity metrics, Prettier formatter, and AI-powered reviews (Google Gemini / local Ollama).",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "publisher": "FixoraFoundation",
   "author": {
     "name": "Krishna Deshmukh",

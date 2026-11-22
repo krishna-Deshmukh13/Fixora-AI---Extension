@@ -1,12 +1,12 @@
-# Fixora AI: Privacy & Security Disclosure
+# Revion (Fixora AI): Privacy & Security Disclosure
 
-**Fixora AI** is committed to uncompromising user privacy and data security. This document details how source code and credentials are handled by the extension.
+**Revion** is committed to uncompromising user privacy and data security. This document details how source code and credentials are handled by the extension.
 
 ---
 
 ## 1. What Information Leaves Your Computer?
 
-Fixora AI only transmits code when you explicitly trigger an action (e.g., clicking **Review Selected Code**, **Review Current File**, **Security Scan**, or **Explain Error**).
+Revion only transmits code when you explicitly trigger an action (e.g., clicking **Review Selected Code**, **Review Current File**, **Security Scan**, sending an **Assistant Chat** message, or **Explain Error**).
 
 ### Exactly What Is Transmitted:
 - **Code Snippet / Selected Text**: The active file or selected block of code you requested to review.
@@ -16,15 +16,16 @@ Fixora AI only transmits code when you explicitly trigger an action (e.g., click
 ### What Is NEVER Transmitted:
 - **Environment & Secret Files**: Files matching `.env*`, `.pem`, `.key`, and `.pfx` are strictly excluded from transmission by default.
 - **Build & Dependency Artifacts**: `node_modules/`, `.git/`, `dist/`, `build/`, `vendor/`, `venv/`, and lockfiles are never scanned or uploaded.
-- **Unselected Files**: Fixora AI never silently uploads your entire repository in the background.
-- **Telemetry & Tracking**: Fixora AI collects **zero** behavioral telemetry, tracking cookies, or diagnostic pings.
+- **Unselected Files**: Revion never silently uploads your entire repository in the background.
+- **Telemetry & Tracking**: Revion collects **zero** behavioral telemetry, tracking cookies, or diagnostic pings.
 
 ---
 
 ## 2. Which Provider Receives Your Code?
 
 - **Google Gemini API**: Transmissions are sent via secure HTTPS encrypted channels directly to the official Google Gemini API (`generativelanguage.googleapis.com`) using the official `@google/genai` SDK.
-- **Direct Client-to-API Architecture**: Fixora AI does not proxy your requests through any intermediate third-party servers. Your local VS Code instance connects directly to Google AI Studio.
+- **Local Ollama (100% Offline)**: When using Ollama, zero requests leave your machine. Prompts are processed locally on your hardware.
+- **Direct Client-to-API Architecture**: Revion does not proxy your requests through any intermediate third-party servers. Your local VS Code instance connects directly to Google AI Studio.
 - **Data Training**: According to Google's API Terms for paid or enterprise tiers, API prompt content is not used to train Google's models. For more details, consult the [Google Gemini API Terms of Service](https://ai.google.dev/gemini-api/terms).
 
 ---
@@ -41,14 +42,14 @@ Fixora AI only transmits code when you explicitly trigger an action (e.g., click
 
 ## 4. Automatic Client-Side Credential Redaction
 
-Before any code payload is transmitted to the AI provider, Fixora AI's `PrivacyManager` performs local regex redaction. If hardcoded credentials (such as AWS keys `AKIA...`, Google keys `AIza...`, GitHub tokens `ghp_...`, or private RSA keys) exist in the code snippet, they are replaced with `[REDACTED_SECRET]` placeholders on your machine, ensuring secrets are never broadcast over the network.
+Before any code payload is transmitted to the AI provider, Revion's `PrivacyManager` performs local regex redaction. If hardcoded credentials (such as AWS keys `AKIA...`, Google keys `AIza...`, GitHub tokens `ghp_...`, or private RSA keys) exist in the code snippet, they are replaced with `[REDACTED_SECRET]` placeholders on your machine, ensuring secrets are never broadcast over the network.
 
 ---
 
 ## 5. Offline & Pure Local Operation
 
-You can use Fixora AI in complete offline or privacy-hardened mode without configuring an AI key:
+You can use Revion in complete offline or privacy-hardened mode without configuring an AI key:
 - Local deterministic heuristic bug detection executes entirely on your CPU.
-- Local static analyzers (ESLint, Ruff, Clang-Tidy, PHPStan, HTMLHint, Stylelint, SQLFluff) run locally as sandboxed processes.
-- To disable AI requests entirely, leave the API key unconfigured or delete your stored key using the command palette:
-  `Fixora AI: Clear Diagnostics`
+- Local static analyzers (Checkstyle/javac, ESLint, Ruff, Clang-Tidy, PHPStan, HTMLHint, Stylelint, SQLFluff) run locally as sandboxed processes.
+- Native Error Lens, Complexity Lens, and Prettier Formatter run 100% locally.
+- Switching provider to **Ollama** runs LLMs locally on your own GPU/CPU.

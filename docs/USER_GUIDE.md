@@ -8,13 +8,16 @@ Welcome to **Revion** — your intelligent code review, error lens, and debuggin
 1. [Sidebar & Navigation Walkthrough](#1-sidebar--navigation-walkthrough)
 2. [First-Run Onboarding Experience](#2-first-run-onboarding-experience)
 3. [Live In-Editor Engines](#3-live-in-editor-engines)
-4. [Code Review Modes & Audits](#4-code-review-modes--audits)
-5. [Understanding Findings & Severity Levels](#5-understanding-findings--severity-levels)
-6. [Using AI Auto-Fix & Diff Preview](#6-using-ai-auto-fix--diff-preview)
-7. [Explaining Errors & Stack Traces](#7-explaining-errors--stack-traces)
-8. [Security & Code Health Audits](#8-security--code-health-audits)
-9. [Pre-Commit Guard & Reports](#9-pre-commit-guard--reports)
-10. [Configuring Settings](#10-configuring-settings)
+4. [Context-Aware AI Chat & Assistant](#4-context-aware-ai-chat--assistant)
+5. [Code Review Modes & Audits](#5-code-review-modes--audits)
+6. [GitHub Pull Request Review](#6-github-pull-request-review)
+7. [Dependency Vulnerability Auditor](#7-dependency-vulnerability-auditor)
+8. [Automated Unit Test Generator](#8-automated-unit-test-generator)
+9. [Workspace Health Score Dashboard](#9-workspace-health-score-dashboard)
+10. [Using AI Auto-Fix & Diff Preview](#10-using-ai-auto-fix--diff-preview)
+11. [Explaining Errors & Stack Traces](#11-explaining-errors--stack-traces)
+12. [Pre-Commit Guard & Reports](#12-pre-commit-guard--reports)
+13. [Configuring Settings](#13-configuring-settings)
 
 ---
 
@@ -51,7 +54,18 @@ Revion runs 4 high-speed offline engines inside your editor:
 
 ---
 
-## 4. Code Review Modes & Audits
+## 4. Context-Aware AI Chat & Assistant
+
+Revion includes a dedicated streaming coding assistant in the sidebar:
+- **Streaming Responses**: Live token streaming directly into chat bubbles.
+- **Context Injection**: Automatically references your open file, selected code lines, and active VS Code Problems diagnostics.
+- **`@file` References**: Type `@src/index.ts` or `@package.json` to attach specific workspace files directly into the prompt (up to 100 lines/10 KB).
+- **Client-Side Secret Redaction**: All API keys, passwords, and tokens are scrubbed into `[REDACTED_SECRET]` locally before prompt transmission.
+- **Follow-Up Quick Actions**: Click prompt chips for instant explanation, test generation, or complexity refactoring.
+
+---
+
+## 5. Code Review Modes & Audits
 
 Revion supports comprehensive review scopes:
 
@@ -62,10 +76,57 @@ Highlight code in any active editor, right-click, and select **Revion: Review Se
 Analyzes the entire open document, identifying architectural issues, unhandled exceptions, and dead code.
 
 ### Mode 3: Review Workspace
-Scans source files across your workspace (capped at 30 files per batch to prevent rate limiting). Excludes `.git`, `node_modules`, `dist`, and environment files automatically.
+Scans source files across your workspace (capped at 30-50 files per batch to prevent rate limiting). Excludes `.git`, `node_modules`, `dist`, and environment files automatically.
 
 ### Mode 4: Review Git Changes
 Audits uncommitted changes or staged changes prior to committing to ensure pull-request readiness.
+
+---
+
+## 6. GitHub Pull Request Review
+
+Review PRs directly inside VS Code:
+1. Run **`Revion: Review GitHub Pull Request`** from the Command Palette (`Ctrl + Shift + P`).
+2. Revion detects your GitHub repository remote from `git remote -v`.
+3. Authenticates via your existing VS Code GitHub account session (`vscode.authentication.getSession`).
+4. Enter the PR number to fetch the unified diff.
+5. Findings are attached to the actual changed line positions in the diff.
+6. **Safety First**: Review comments can be previewed locally and are posted to GitHub **only** after your explicit modal confirmation.
+
+---
+
+## 7. Dependency Vulnerability Auditor
+
+Audit your project manifests for known CVE advisories:
+1. Run **`Revion: Audit Dependencies for Vulnerabilities`**.
+2. Scans `package.json` (npm) and `requirements.txt` (Python).
+3. Cross-checks against curated CVE advisories (e.g., Log4Shell, Prototype Pollution, SSRF, JWT RCE, Open Redirects).
+4. Provides evidence-backed remediation advice and minimum secure versions.
+5. *Note: Automated scans do not replace comprehensive manual security audits or official CVE feeds.*
+
+---
+
+## 8. Automated Unit Test Generator
+
+Generate production-grade unit tests for any function or file:
+1. Highlight code in your editor.
+2. Run **`Revion: Generate Unit Tests`** from the Command Palette.
+3. Revion detects your project's test framework (Vitest, Jest, Pytest, JUnit).
+4. Generates comprehensive tests covering happy paths, edge cases, and error conditions.
+5. Safely opens the test in a new untitled VS Code editor for review with an option to save to conventional test directories (`test/unit/...`, `tests/...`).
+
+---
+
+## 9. Workspace Health Score Dashboard
+
+Get an objective, grounded assessment of your codebase quality:
+1. Run **`Revion: Workspace Health & Quality Audit`**.
+2. Computes an objective score (0–100) based on:
+   - Diagnostic severity distribution (Errors, Warnings, Hints)
+   - Function Cyclomatic Complexity averages
+   - Hotspot functions (CC > 10)
+   - Dependency vulnerability counts
+3. Explains how metrics are computed with zero fabricated quality scores.
 
 ---
 
